@@ -1,0 +1,21 @@
+# Dependencias (se reinstalan con npm install)
+node_modules/
+
+# Base de datos (contiene datos privados)
+relma.db
+relma.db-shm
+relma.db-wal
+
+# Respaldos (privados)
+respaldos/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Archivos temporales
+Thumbs.db
+.DS_Store
+
+# Variables de entorno
+.env
