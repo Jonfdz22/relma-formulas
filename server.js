@@ -790,6 +790,271 @@ app.get("/api/buscar", (req, res) => {
   });
 });
 
+// ==================== EXPORTAR CONSULTA MÓVIL ====================
+app.post("/api/exportar-consulta", requiereAdmin, async (req, res) => {
+  try {
+    const html = generarConsultaMovil();
+    // Guardar en la carpeta de respaldos (que se sincroniza a Drive)
+    const ruta = path.join(respaldos.CARPETA_LOCAL, "consulta_movil.html");
+    fs.writeFileSync(ruta, html, "utf8");
+
+    // Intentar copiar a Drive también
+    let copiadoDrive = false;
+    try {
+      const config = db.prepare("SELECT valor FROM config WHERE clave='pref_backup_drive'").get();
+      if (config && config.valor) {
+        const destino = path.join(config.valor, "consulta_movil.html");
+        fs.writeFileSync(destino, html, "utf8");
+        copiadoDrive = true;
+      }
+    } catch (e) { /* drive no disponible, ignorar */ }
+
+    logCambio(usuarioDe(req), "EXPORTAR_CONSULTA", "sistema", null, { drive: copiadoDrive });
+    res.json({
+      ok: true,
+      archivo: "consulta_movil.html",
+      drive: copiadoDrive,
+      tamano_kb: Math.round(html.length / 1024)
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+// (función generada más abajo)
+function generarConsultaMovil() {
+  const clientes = db.prepare("SELECT id, nombre, contacto, telefono FROM clientes WHERE activo=1 ORDER BY nombre").all();
+  const formulas = db.prepare(`
+    SELECT f.*, c.nombre AS cliente_nombre
+    FROM formulas f JOIN clientes c ON c.id=f.cliente_id
+    ORDER BY c.nombre, f.color
+  `).all();
+  const tintasPorFormula = {};
+  for (const f of formulas) {
+    tintasPorFormula[f.id] = db.prepare("SELECT tinta, cantidad_texto FROM detalle_tintas WHERE formula_id=?").all(f.id);
+  }
+  const cfg = {};
+  db.prepare("SELECT clave, valor FROM config").all().forEach(r => cfg[r.clave] = r.valor);
+  const empresa = cfg.empresa_nombre || "RELMA";
+
+  const datos = { clientes, formulas, tintas: tintasPorFormula, empresa, fecha: new Date().toISOString() };
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>${empresa} — Consulta móvil</title>
+<meta name="theme-color" content="#0ea5e9">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+         background: #0f172a; color: #e2e8f0; padding-bottom: 80px; min-height: 100vh; }
+  header { background: #1e293b; padding: 12px 14px; position: sticky; top: 0; z-index: 50;
+           border-bottom: 2px solid #334155; }
+  header h1 { font-size: 16px; color: #0ea5e9; margin-bottom: 8px; }
+  .search-bar { position: relative; }
+  .search-bar input { width: 100%; background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
+                      border-radius: 8px; padding: 12px; font-size: 16px; }
+  .search-bar input:focus { outline: none; border-color: #0ea5e9; }
+  main { padding: 12px; max-width: 700px; margin: 0 auto; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+          padding: 14px; margin-bottom: 10px; cursor: pointer; transition: all .15s; }
+  .card:active { transform: scale(0.98); border-color: #0ea5e9; }
+  .card h3 { font-size: 15px; color: #0ea5e9; margin-bottom: 4px; }
+  .card .sub { font-size: 13px; color: #94a3b8; }
+  .badge { display: inline-block; background: #0ea5e9; color: white; font-size: 11px;
+           padding: 2px 8px; border-radius: 10px; margin-top: 6px; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 100;
+           display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .modal.oculto { display: none; }
+  .modal-caja { background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+                padding: 18px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+  .modal-caja h3 { color: #0ea5e9; margin-bottom: 12px; font-size: 17px; }
+  .modal-caja p { margin-bottom: 6px; font-size: 14px; }
+  .modal-caja p b { color: #94a3b8; font-weight: normal; }
+  .tinta-row { display: flex; justify-content: space-between; padding: 8px 0;
+               border-bottom: 1px solid #334155; font-size: 14px; }
+  .tinta-row:last-child { border-bottom: none; }
+  .tinta-row .nombre { font-weight: bold; color: #38bdf8; }
+  .tinta-row .cantidad { font-family: Consolas, monospace; color: #4ade80; }
+  .acciones { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  button { padding: 10px 16px; border-radius: 8px; cursor: pointer; border: none;
+           font-weight: bold; font-size: 14px; }
+  button.primario { background: #0ea5e9; color: white; }
+  button.secundario { background: #334155; color: #e2e8f0; }
+  .info { text-align: center; padding: 40px 20px; color: #94a3b8; }
+  .info .num { font-size: 42px; font-weight: bold; color: #0ea5e9; margin-bottom: 6px; }
+  .info .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .footer-info { text-align: center; padding: 20px; color: #64748b; font-size: 11px; }
+  .filtro-cliente { background: #334155; color: #e2e8f0; border: 1px solid #475569;
+                    border-radius: 6px; padding: 8px; width: 100%; margin-top: 8px; font-size: 14px; }
+  @media print {
+    body { background: white; color: black; }
+    header, .acciones, .footer-info { display: none; }
+    .modal { position: static; background: white; padding: 0; }
+    .modal-caja { background: white; color: black; border: 2px solid black; max-height: none; }
+    .tinta-row { border-bottom: 1px solid #999; }
+    .tinta-row .nombre { color: black; }
+    .tinta-row .cantidad { color: black; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎨 ${empresa} — Consulta</h1>
+  <div class="search-bar">
+    <input id="buscar" type="text" placeholder="🔍 Buscar cliente, color o código..." autocomplete="off">
+  </div>
+  <select id="filtroCliente" class="filtro-cliente">
+    <option value="">— Todos los clientes —</option>
+  </select>
+</header>
+
+<main>
+  <div class="info" id="stats">
+    <div class="num" id="statsNum">0</div>
+    <div class="lbl">Fórmulas</div>
+  </div>
+  <div id="lista"></div>
+  <div class="footer-info">
+    Generado: <span id="fechaGen"></span><br>
+    Última actualización de datos: <span id="fechaAct"></span>
+  </div>
+</main>
+
+<div class="modal oculto" id="modalDetalle">
+  <div class="modal-caja" id="detalleCaja"></div>
+</div>
+
+<script>
+const DATOS = ${JSON.stringify(datos)};
+
+const $ = s => document.querySelector(s);
+
+function formatearFecha(iso) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("es-MX") + " " + d.toLocaleTimeString("es-MX", {hour:"2-digit", minute:"2-digit"});
+  } catch(e) { return iso; }
+}
+
+function pintarFiltroClientes() {
+  const sel = $("#filtroCliente");
+  const ordenados = [...DATOS.clientes].sort((a,b) => a.nombre.localeCompare(b.nombre));
+  ordenados.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.nombre;
+    opt.textContent = c.nombre;
+    sel.appendChild(opt);
+  });
+}
+
+function pintarLista() {
+  const q = ($("#buscar").value || "").toUpperCase().trim();
+  const clienteFiltro = $("#filtroCliente").value;
+  const cont = $("#lista");
+  const stats = $("#stats");
+  const statsNum = $("#statsNum");
+
+  let filtradas = DATOS.formulas.filter(f => {
+    if (clienteFiltro && f.cliente_nombre !== clienteFiltro) return false;
+    if (!q) return true;
+    const texto = (f.color + " " + (f.codigo||"") + " " + (f.cliente_nombre||"") + " " + (f.producto||"")).toUpperCase();
+    return texto.includes(q);
+  });
+
+  if (!q && !clienteFiltro) {
+    stats.style.display = "block";
+    statsNum.textContent = DATOS.formulas.length;
+  } else {
+    stats.style.display = "none";
+  }
+
+  if (!filtradas.length) {
+    cont.innerHTML = '<div class="info">Sin resultados</div>';
+    return;
+  }
+
+  cont.innerHTML = filtradas.slice(0, 200).map(f => \`
+    <div class="card" onclick="verFormula(\${f.id})">
+      <h3>\${f.color}</h3>
+      <div class="sub">\${f.cliente_nombre}</div>
+      <div class="sub">\${f.producto || ""} · \${f.base || ""}</div>
+      <div class="badge">\${f.capacidad_madre} LT · \${f.maquina === 64 ? "Arq." : "Ind."}</div>
+    </div>
+  \`).join("");
+}
+
+function verFormula(id) {
+  const f = DATOS.formulas.find(x => x.id === id);
+  if (!f) return;
+  const tintas = DATOS.tintas[id] || [];
+  const tintasHTML = tintas.map(t => \`
+    <div class="tinta-row">
+      <span class="nombre">\${t.tinta}</span>
+      <span class="cantidad">\${t.cantidad_texto}</span>
+    </div>
+  \`).join("");
+
+  $("#detalleCaja").innerHTML = \`
+    <h3>\${f.color}</h3>
+    <p><b>Cliente:</b> \${f.cliente_nombre}</p>
+    <p><b>Producto:</b> \${f.producto || "-"}</p>
+    <p><b>Base:</b> \${f.base || "-"}</p>
+    <p><b>Capacidad:</b> \${f.capacidad_madre} LT · <b>Máquina:</b> \${f.maquina === 64 ? "Arquitectónica" : "Industrial"}</p>
+    \${f.codigo ? '<p><b>Código:</b> ' + f.codigo + '</p>' : ""}
+    \${f.notas ? '<p><b>Notas:</b> ' + f.notas + '</p>' : ""}
+    <h4 style="margin-top:14px; color:#0ea5e9; font-size:14px;">Tintas:</h4>
+    \${tintasHTML}
+    <div class="acciones">
+      <button class="secundario" onclick="cerrarModal()">Cerrar</button>
+      <button class="primario" onclick="imprimirFormula(\${id})">🖨 Imprimir</button>
+    </div>
+  \`;
+  $("#modalDetalle").classList.remove("oculto");
+}
+
+function cerrarModal() {
+  $("#modalDetalle").classList.add("oculto");
+}
+
+function imprimirFormula(id) {
+  const f = DATOS.formulas.find(x => x.id === id);
+  if (!f) return;
+  const tintas = DATOS.tintas[id] || [];
+  const w = window.open("", "_blank");
+  w.document.write(\`<html><head><title>\${f.color}</title>
+    <style>body{font-family:Arial;padding:20px;} h1{color:#0284c7;} table{width:100%; border-collapse:collapse; margin-top:16px;} td,th{padding:8px; border-bottom:1px solid #ddd; text-align:left;} th{background:#0284c7; color:white;}</style>
+    </head><body>
+    <h1>\${DATOS.empresa}</h1><h2>\${f.color}</h2>
+    <p><b>Cliente:</b> \${f.cliente_nombre}<br><b>Producto:</b> \${f.producto || "-"}<br><b>Base:</b> \${f.base || "-"}<br><b>Capacidad:</b> \${f.capacidad_madre} LT<br><b>Fecha:</b> \${new Date().toLocaleString("es-MX")}</p>
+    <table><tr><th>Tinta</th><th>Cantidad</th></tr>\${tintas.map(t => '<tr><td>' + t.tinta + '</td><td><b>' + t.cantidad_texto + '</b></td></tr>').join("")}</table>
+    </body></html>\`);
+  w.document.close();
+  setTimeout(() => w.print(), 300);
+}
+
+$("#buscar").addEventListener("input", pintarLista);
+$("#filtroCliente").addEventListener("change", pintarLista);
+$("#modalDetalle").addEventListener("click", e => {
+  if (e.target.id === "modalDetalle") cerrarModal();
+});
+
+$("#fechaGen").textContent = new Date().toLocaleString("es-MX");
+$("#fechaAct").textContent = formatearFecha(DATOS.fecha);
+
+pintarFiltroClientes();
+pintarLista();
+</script>
+</body>
+</html>`;
+}
+module.exports._generarConsultaHTML = function(datos) {
+  return generarConsultaMovil._html ? generarConsultaMovil._html(datos) : "";
+};
+
 // ==================== INICIO ====================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
@@ -806,6 +1071,25 @@ app.listen(PORT, () => {
       horas: horas ? horas.valor : 6,
       drive: drive ? drive.valor : null,
     });
+
+    // Generar consulta móvil cada 6 horas
+    const generarConsulta = () => {
+      try {
+        const html = generarConsultaMovil();
+        const rutaLocal = require("path").join(respaldos.CARPETA_LOCAL, "consulta_movil.html");
+        require("fs").writeFileSync(rutaLocal, html, "utf8");
+        if (drive && drive.valor) {
+          try {
+            require("fs").writeFileSync(require("path").join(drive.valor, "consulta_movil.html"), html, "utf8");
+          } catch(e) {}
+        }
+        console.log("→ Consulta móvil generada (" + Math.round(html.length/1024) + " KB)");
+      } catch(e) { console.error("Error generando consulta:", e.message); }
+    };
+    // Generar una al arrancar
+    setTimeout(generarConsulta, 3000);
+    // Y cada 6 horas
+    setInterval(generarConsulta, 6 * 60 * 60 * 1000);
   } catch (e) {
     console.error("Error configurando respaldos:", e.message);
   }

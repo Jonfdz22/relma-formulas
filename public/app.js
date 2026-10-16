@@ -1930,6 +1930,20 @@ $("#btnGuardarBackupCfg").onclick = async () => {
   }
 };
 
+$("#btnGenerarConsulta").onclick = async () => {
+  try {
+    toast("Generando consulta móvil...", "aviso");
+    const r = await api("/api/exportar-consulta", { method: "POST", body: JSON.stringify({}) });
+    if (r.ok) {
+      toast(`✅ Consulta generada (${r.tamano_kb} KB)${r.drive ? " · Copiada a Drive" : ""}`, "exito");
+    } else {
+      toast("Error: " + (r.error || "desconocido"), "error");
+    }
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+};
+
 $("#btnBackupAhora").onclick = async () => {
   try {
     const r = await api("/api/respaldos/ahora", { method: "POST", body: JSON.stringify({}) });
