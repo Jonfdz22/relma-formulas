@@ -11,6 +11,7 @@
   --exito: #22c55e;
   --peligro: #dc2626;
   --aviso: #f59e0b;
+  --fondo-suave: #1e293b;
 }
 html[data-tema="claro"] {
   --bg: #f1f5f9;
@@ -19,6 +20,7 @@ html[data-tema="claro"] {
   --txt: #0f172a;
   --txt-suave: #64748b;
   --borde: #cbd5e1;
+  --fondo-suave: #e2e8f0;
 }
 body {
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -235,7 +237,7 @@ html[data-tema="claro"] pre { background: #f8fafc; color: #166534; }
 }
 .tinta-fila:last-child, .ajuste-fila:last-child { border-bottom: none; }
 .tinta-fila select { flex: 2; }
-.tinta-fila input { flex: 1; }s
+.tinta-fila input { flex: 1; }
 .tinta-fila button.quitar {
   background: var(--peligro); color: white; border: none;
   padding: 6px 12px; border-radius: 6px; cursor: pointer;
@@ -738,4 +740,371 @@ pre:empty,
   color: #333;
   white-space: normal;
   word-wrap: break-word;
+}
+
+
+/* ==== PULIDO GENERAL Y ACCESIBILIDAD ==== */
+button, input, select, textarea, a.primario, a.secundario {
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus-visible, a:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--acento);
+  outline-offset: 2px;
+}
+button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+button, .card, .sesion-card, input, select, textarea {
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+input[type="checkbox"], input[type="radio"] {
+  accent-color: var(--acento);
+}
+input[type="color"] {
+  min-height: 44px;
+  padding: 4px;
+}
+.modal-caja {
+  overscroll-behavior: contain;
+}
+.resultados-global .item:focus-visible,
+.resultados-global .item:focus {
+  outline: 2px solid var(--acento);
+  outline-offset: -2px;
+}
+#listaHistorial .item > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ajuste-fila .tinta, .ajuste-fila .cantidad,
+.total-fila .tinta, .total-fila .valor {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .fila-botones > button, .fila-botones > a {
+    flex: 1 1 auto;
+  }
+  .card-config { padding: 12px; }
+  .modal { align-items: flex-start; overflow-y: auto; }
+  .modal-caja { margin: auto 0; max-height: calc(100vh - 24px); padding: 16px; }
+  #listaHistorial .item { align-items: flex-start; flex-direction: column; }
+  .ajuste-fila { flex-wrap: wrap; }
+  .ajuste-fila .tinta { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* ==========================================================
+   BOTONES MODERNOS RELMA — tema oscuro primero
+   Refresco visual: degradados suaves, bordes sutiles y estados claros
+   ========================================================== */
+:root {
+  --boton-radio: 10px;
+  --boton-sombra: 0 5px 14px rgba(0, 0, 0, .20), inset 0 1px 0 rgba(255, 255, 255, .045);
+  --boton-borde: rgba(148, 163, 184, .20);
+  --boton-neutro-arriba: #2a3a52;
+  --boton-neutro-abajo: #1e293b;
+  --boton-azul-arriba: #22b8f0;
+  --boton-azul-abajo: #0284c7;
+}
+
+/* Base compartida para botones generados desde HTML o JavaScript */
+button {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--boton-borde);
+  border-radius: var(--boton-radio);
+  background: linear-gradient(180deg, var(--boton-neutro-arriba), var(--boton-neutro-abajo));
+  color: var(--txt);
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: .01em;
+  box-shadow: var(--boton-sombra);
+  transition: background .18s ease, color .18s ease, border-color .18s ease,
+              box-shadow .18s ease, transform .18s ease, filter .18s ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, .48);
+  box-shadow: 0 7px 18px rgba(0, 0, 0, .24), 0 0 0 1px rgba(14, 165, 233, .06);
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0) scale(.985);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+}
+
+button:disabled {
+  filter: saturate(.55);
+  box-shadow: none;
+}
+
+/* Acción principal: azul brillante, pensado para el tema oscuro */
+button.primario, a.primario, .primario {
+  color: #fff;
+  background: linear-gradient(180deg, var(--boton-azul-arriba), var(--boton-azul-abajo));
+  border: 1px solid rgba(125, 211, 252, .38);
+  border-radius: var(--boton-radio);
+  box-shadow: 0 5px 14px rgba(2, 132, 199, .22), inset 0 1px 0 rgba(255, 255, 255, .20);
+}
+button.primario:hover:not(:disabled), a.primario:hover, .primario:hover {
+  color: #fff;
+  background: linear-gradient(180deg, #38c5f5, #0795d5);
+  border-color: rgba(186, 230, 253, .62);
+  box-shadow: 0 7px 19px rgba(14, 165, 233, .30), inset 0 1px 0 rgba(255, 255, 255, .22);
+}
+
+/* Acción secundaria: superficie azul-gris discreta */
+button.secundario, a.secundario, .secundario {
+  color: var(--txt);
+  background: linear-gradient(180deg, #33445d, #26354a);
+  border: 1px solid rgba(148, 163, 184, .24);
+  border-radius: var(--boton-radio);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .15), inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+button.secundario:hover:not(:disabled), a.secundario:hover, .secundario:hover {
+  color: #fff;
+  background: linear-gradient(180deg, #405875, #2c435e);
+  border-color: rgba(125, 211, 252, .40);
+}
+
+/* Acciones de éxito y peligro con colores menos planos */
+button.exito, .exito {
+  color: #f0fdf4;
+  background: linear-gradient(180deg, #22c55e, #15803d);
+  border: 1px solid rgba(134, 239, 172, .30);
+  box-shadow: 0 5px 14px rgba(22, 163, 74, .18), inset 0 1px 0 rgba(255, 255, 255, .15);
+}
+button.exito:hover:not(:disabled), .exito:hover {
+  background: linear-gradient(180deg, #34d977, #16a34a);
+  border-color: rgba(187, 247, 208, .55);
+}
+button.peligro, .peligro {
+  color: #fff1f2;
+  background: linear-gradient(180deg, #ef4444, #b91c1c);
+  border: 1px solid rgba(252, 165, 165, .30);
+  box-shadow: 0 5px 14px rgba(220, 38, 38, .17), inset 0 1px 0 rgba(255, 255, 255, .13);
+}
+button.peligro:hover:not(:disabled), .peligro:hover {
+  background: linear-gradient(180deg, #f87171, #dc2626);
+  border-color: rgba(254, 202, 202, .55);
+}
+
+/* Navegación principal: estados inactivos suaves y pestaña activa destacada */
+nav button {
+  padding: 9px 14px;
+  color: #b7c6da;
+  background: linear-gradient(180deg, #2b3b52, #202d41);
+  border: 1px solid rgba(148, 163, 184, .12);
+  border-radius: 10px;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, .12), inset 0 1px 0 rgba(255, 255, 255, .035);
+}
+nav button:hover:not(.activo):not(:disabled) {
+  color: #eaf7ff;
+  background: linear-gradient(180deg, #354b66, #273c55);
+  border-color: rgba(56, 189, 248, .28);
+}
+nav button.activo {
+  color: #fff;
+  background: linear-gradient(180deg, #22b8f0, #0284c7);
+  border: 1px solid rgba(125, 211, 252, .44);
+  box-shadow: 0 5px 15px rgba(2, 132, 199, .25), inset 0 1px 0 rgba(255, 255, 255, .20);
+}
+nav button.activo:hover:not(:disabled) {
+  background: linear-gradient(180deg, #38c5f5, #0795d5);
+}
+
+/* Botones pequeños del encabezado y menú de usuario */
+.btn-icono {
+  color: #dbeafe;
+  background: linear-gradient(180deg, #2d4059, #1e2c40);
+  border: 1px solid rgba(148, 163, 184, .19);
+  border-radius: 11px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .15), inset 0 1px 0 rgba(255, 255, 255, .045);
+}
+.btn-icono:hover:not(:disabled) {
+  color: white;
+  background: linear-gradient(180deg, #087eae, #0369a1);
+  border-color: rgba(125, 211, 252, .44);
+}
+#btnUser { padding: 9px 13px; }
+.dropdown button {
+  color: var(--txt);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  text-align: left;
+}
+.dropdown button:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(14, 165, 233, .14);
+  box-shadow: inset 3px 0 0 var(--acento);
+  transform: none;
+}
+
+/* Acciones compactas de editar, borrar y favoritos en las tarjetas */
+.card-acciones button {
+  color: #c7d5e7;
+  background: linear-gradient(180deg, #304158, #243247);
+  border: 1px solid rgba(148, 163, 184, .12);
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 5px 8px;
+}
+.card-acciones button:hover:not(:disabled) {
+  color: #fff;
+  background: linear-gradient(180deg, #0ea5e9, #0369a1);
+  border-color: rgba(125, 211, 252, .32);
+  box-shadow: 0 4px 10px rgba(2, 132, 199, .20);
+}
+.card-acciones .fav.activo {
+  color: #fff7d6;
+  background: linear-gradient(180deg, #fbbf24, #d97706);
+  border-color: rgba(253, 230, 138, .45);
+}
+.tinta-fila button.quitar, .ajuste-fila .del-btn {
+  color: #fff1f2;
+  background: linear-gradient(180deg, #ef4444, #b91c1c);
+  border: 1px solid rgba(252, 165, 165, .27);
+  border-radius: 8px;
+  box-shadow: none;
+}
+.tinta-fila button.quitar:hover:not(:disabled), .ajuste-fila .del-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f87171, #dc2626);
+}
+
+/* Pestañas secundarias sin perder su línea indicadora */
+.sub-tabs button {
+  color: var(--txt-suave);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 9px 9px 0 0;
+  box-shadow: none;
+  padding: 10px 14px;
+}
+.sub-tabs button:hover:not(.activo):not(:disabled) {
+  color: var(--txt);
+  background: rgba(148, 163, 184, .07);
+  border-color: transparent;
+  border-bottom-color: rgba(14, 165, 233, .40);
+  box-shadow: none;
+  transform: none;
+}
+.sub-tabs button.activo {
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, .09);
+  border-color: transparent;
+  border-bottom: 2px solid #0ea5e9;
+  box-shadow: none;
+}
+
+/* Modo claro: conserva el mismo estilo, adaptando los neutros */
+html[data-tema="claro"] {
+  --boton-borde: rgba(71, 85, 105, .20);
+  --boton-neutro-arriba: #ffffff;
+  --boton-neutro-abajo: #e8eef6;
+}
+html[data-tema="claro"] button:not(.primario):not(.secundario):not(.exito):not(.peligro) {
+  color: #1e293b;
+}
+html[data-tema="claro"] nav button {
+  color: #475569;
+  background: linear-gradient(180deg, #ffffff, #e8eef6);
+  border-color: rgba(71, 85, 105, .17);
+}
+html[data-tema="claro"] nav button.activo {
+  color: #fff;
+  background: linear-gradient(180deg, #22b8f0, #0284c7);
+}
+html[data-tema="claro"] .btn-icono {
+  color: #334155;
+  background: linear-gradient(180deg, #ffffff, #e8eef6);
+}
+html[data-tema="claro"] .dropdown button { color: var(--txt); }
+html[data-tema="claro"] .card-acciones button {
+  color: #334155;
+  background: linear-gradient(180deg, #fff, #e2e8f0);
+}
+html[data-tema="claro"] .sub-tabs button.activo {
+  color: #0369a1;
+  background: rgba(14, 165, 233, .08);
+}
+
+@media (max-width: 700px) {
+  nav button { padding: 8px 11px; font-size: .84rem; }
+  button.primario, button.secundario, button.peligro, button.exito,
+  a.primario, a.secundario { border-radius: 9px; }
+}
+
+/* ==== FIX: evita que los botones de acción tapen el nombre de las fórmulas ==== */
+#listaFormulas .card {
+  /* Reserva una franja independiente para los cuatro botones de acción. */
+  padding-top: 58px;
+}
+
+#listaFormulas .card-acciones {
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  opacity: .96;
+}
+
+#listaFormulas .card-acciones button {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex: 0 0 30px;
+}
+
+#listaFormulas .card h3 {
+  padding-right: 0;
+  margin-bottom: 8px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+#listaFormulas .card .sub {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  #listaFormulas .card {
+    padding-top: 56px;
+  }
+
+  #listaFormulas .card-acciones {
+    top: 9px;
+    right: 9px;
+    gap: 4px;
+  }
+
+  #listaFormulas .card-acciones button {
+    width: 29px;
+    height: 29px;
+    min-width: 29px;
+    flex-basis: 29px;
+  }
 }

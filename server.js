@@ -13,7 +13,6 @@ const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-// Middleware: obtiene usuario del header
 function usuarioDe(req) { return req.headers["x-usuario"] || "anonimo"; }
 function esAdmin(req) { return req.headers["x-rol"] === "admin"; }
 function requiereAdmin(req, res, next) {
@@ -130,13 +129,9 @@ app.put("/api/clientes/:id", (req, res) => {
 app.delete("/api/clientes/:id", requiereAdmin, (req, res) => {
   try {
     const borrar = db.transaction(() => {
-      // 1. Desconectar del historial (conserva el registro histórico)
       db.prepare("UPDATE historial_preparacion SET cliente_id=NULL WHERE cliente_id=?").run(req.params.id);
-      // 2. Borrar sesiones del mezclador (con sus ajustes en cascada)
       db.prepare("DELETE FROM sesiones_mezclador WHERE cliente_id=?").run(req.params.id);
-      // 3. Borrar fórmulas del cliente (detalle_tintas cae en cascada)
       db.prepare("DELETE FROM formulas WHERE cliente_id=?").run(req.params.id);
-      // 4. Finalmente, borrar el cliente
       db.prepare("DELETE FROM clientes WHERE id=?").run(req.params.id);
     });
     borrar();
@@ -188,12 +183,20 @@ app.post("/api/productos", (req, res) => {
 app.get("/api/formulas", (req, res) => {
   const q = req.query.q || "";
   const fav = req.query.favoritos === "1";
-  const cond = ["(f.color LIKE ? OR f.codigo LIKE ? OR c.nombre LIKE ?)"];
-  const params = ["%"+q+"%","%"+q+"%","%"+q+"%"];
+  const cond = ["(f.color LIKE ? OR f.codigo LIKE ? OR c.nombre LIKE ? OR f.notas LIKE ?)"];
+  const params = ["%"+q+"%","%"+q+"%","%"+q+"%","%"+q+"%"];
   if (fav) cond.push("f.favorito=1");
+  
   res.json(db.prepare(`
-    SELECT f.*, c.nombre AS cliente_nombre
-    FROM formulas f JOIN clientes c ON c.id=f.cliente_id
+    SELECT f.*, 
+      (SELECT GROUP_CONCAT(cl.nombre, ', ') FROM formula_clientes fc 
+       JOIN clientes cl ON cl.id = fc.cliente_id 
+       WHERE fc.formula_id = f.id) AS cliente_nombre,
+      (SELECT GROUP_CONCAT(cl.id, ',') FROM formula_clientes fc 
+       JOIN clientes cl ON cl.id = fc.cliente_id 
+       WHERE fc.formula_id = f.id) AS clientes_ids
+    FROM formulas f 
+    JOIN clientes c ON c.id=f.cliente_id
     WHERE ${cond.join(" AND ")}
     ORDER BY f.favorito DESC, f.fecha_creacion DESC LIMIT 500
   `).all(...params));
@@ -201,8 +204,16 @@ app.get("/api/formulas", (req, res) => {
 
 app.get("/api/formulas/:id", (req, res) => {
   const f = db.prepare(`
-    SELECT f.*, c.nombre AS cliente_nombre FROM formulas f
-    JOIN clientes c ON c.id=f.cliente_id WHERE f.id=?`).get(req.params.id);
+    SELECT f.*, 
+      (SELECT GROUP_CONCAT(cl.nombre, ', ') FROM formula_clientes fc 
+       JOIN clientes cl ON cl.id = fc.cliente_id 
+       WHERE fc.formula_id = f.id) AS cliente_nombre,
+      (SELECT GROUP_CONCAT(cl.id, ',') FROM formula_clientes fc 
+       JOIN clientes cl ON cl.id = fc.cliente_id 
+       WHERE fc.formula_id = f.id) AS clientes_ids
+    FROM formulas f 
+    WHERE f.id=?`).get(req.params.id);
+    
   if (!f) return res.status(404).json({ error: "No existe" });
   f.tintas = db.prepare("SELECT * FROM detalle_tintas WHERE formula_id=?").all(f.id);
   res.json(f);
@@ -215,9 +226,15 @@ function guardarFormula(data, usuario) {
       VALUES (?,?,?,?,?,?,?,?,?)`).run(
       data.cliente_id, data.color, data.codigo||null, data.producto||null, data.base||null,
       data.capacidad_madre||1, data.maquina||32, data.foto_url||null, data.notas||null);
+    
     const fid = info.lastInsertRowid;
-    const ins = db.prepare("INSERT INTO detalle_tintas (formula_id,tinta,cantidad_texto,categoria) VALUES (?,?,?,?)");
-    for (const t of (data.tintas||[])) ins.run(fid, t.tinta, t.cantidad_texto, t.categoria||null);
+    const insT = db.prepare("INSERT INTO detalle_tintas (formula_id,tinta,cantidad_texto,categoria) VALUES (?,?,?,?)");
+    for (const t of (data.tintas||[])) insT.run(fid, t.tinta, t.cantidad_texto, t.categoria||null);
+    
+    if (data.clientes_ids && data.clientes_ids.length > 0) {
+      const insC = db.prepare("INSERT OR IGNORE INTO formula_clientes (formula_id, cliente_id) VALUES (?,?)");
+      for (const cid of data.clientes_ids) insC.run(fid, cid);
+    }
     return fid;
   });
   return crear();
@@ -225,29 +242,53 @@ function guardarFormula(data, usuario) {
 
 app.post("/api/formulas", (req, res) => {
   if (!req.body.cliente_id || !req.body.color) return res.status(400).json({ error: "Faltan datos" });
+  if (!req.body.clientes_ids) req.body.clientes_ids = [req.body.cliente_id];
   const id = guardarFormula(req.body, usuarioDe(req));
   logCambio(usuarioDe(req), "CREAR", "formulas", id, { color: req.body.color });
   res.json({ id });
 });
 
 app.put("/api/formulas/:id", (req, res) => {
-  const { color, codigo, producto, base, capacidad_madre, maquina, notas, tintas } = req.body;
+  const { color, codigo, producto, base, capacidad_madre, maquina, notas, tintas, clientes_ids, cliente_id } = req.body;
+  
+  let clientePrincipal = cliente_id;
+  if (clientes_ids && clientes_ids.length > 0) {
+    clientePrincipal = clientes_ids[0];
+  }
+
   const upd = db.transaction(() => {
-    db.prepare(`UPDATE formulas SET color=COALESCE(?,color), codigo=COALESCE(?,codigo),
+    db.prepare(`UPDATE formulas SET 
+      cliente_id=?,
+      color=COALESCE(?,color), codigo=COALESCE(?,codigo),
       producto=COALESCE(?,producto), base=COALESCE(?,base),
       capacidad_madre=COALESCE(?,capacidad_madre), maquina=COALESCE(?,maquina),
       notas=COALESCE(?,notas), ultima_actualizacion=datetime('now') WHERE id=?`)
-      .run(color||null, codigo||null, producto||null, base||null,
+      .run(clientePrincipal, color||null, codigo||null, producto||null, base||null,
            capacidad_madre||null, maquina||null, notas||null, req.params.id);
+    
     if (tintas) {
       db.prepare("DELETE FROM detalle_tintas WHERE formula_id=?").run(req.params.id);
       const ins = db.prepare("INSERT INTO detalle_tintas (formula_id,tinta,cantidad_texto,categoria) VALUES (?,?,?,?)");
       for (const t of tintas) ins.run(req.params.id, t.tinta, t.cantidad_texto, t.categoria||null);
     }
+
+    db.prepare("DELETE FROM formula_clientes WHERE formula_id=?").run(req.params.id);
+    if (clientes_ids && clientes_ids.length > 0) {
+      const insC = db.prepare("INSERT OR IGNORE INTO formula_clientes (formula_id, cliente_id) VALUES (?,?)");
+      for (const cid of clientes_ids) insC.run(req.params.id, cid);
+    } else if (clientePrincipal) {
+      const insC = db.prepare("INSERT OR IGNORE INTO formula_clientes (formula_id, cliente_id) VALUES (?,?)");
+      insC.run(req.params.id, clientePrincipal);
+    }
   });
-  upd();
-  logCambio(usuarioDe(req), "EDITAR", "formulas", req.params.id, req.body);
-  res.json({ ok: true });
+  
+  try {
+    upd();
+    logCambio(usuarioDe(req), "EDITAR", "formulas", req.params.id, req.body);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.post("/api/formulas/:id/duplicar", (req, res) => {
@@ -275,9 +316,7 @@ app.post("/api/formulas/:id/favorito", (req, res) => {
 app.delete("/api/formulas/:id", (req, res) => {
   try {
     const borrar = db.transaction(() => {
-      // Desconectar del historial antes de borrar la fórmula
       db.prepare("UPDATE historial_preparacion SET formula_id=NULL WHERE formula_id=?").run(req.params.id);
-      // Borrar fórmula (detalle_tintas cae en cascada)
       db.prepare("DELETE FROM formulas WHERE id=?").run(req.params.id);
     });
     borrar();
@@ -431,12 +470,17 @@ app.get("/api/log", (req, res) => {
 });
 
 // ==================== BACKUP / RESTORE ====================
-const TABLAS_BACKUP = ["clientes","formulas","detalle_tintas","historial_preparacion",
+const TABLAS_BACKUP = ["clientes","formulas","detalle_tintas","formula_clientes","historial_preparacion",
                        "catalogo_tintas","catalogo_productos","log_cambios","config","usuarios"];
 
 app.post("/api/backup", (req, res) => {
   const { tablas, nombre } = req.body;
-  const lista = (tablas && tablas.length ? tablas : TABLAS_BACKUP).filter(t => TABLAS_BACKUP.includes(t));
+let lista = (tablas && tablas.length ? tablas : TABLAS_BACKUP).filter(t => TABLAS_BACKUP.includes(t));
+
+// Si el usuario seleccionó fórmulas, forzar la inclusión de los enlaces de clientes
+if (lista.includes("formulas") && !lista.includes("formula_clientes")) {
+  lista.push("formula_clientes");
+}
   const data = {};
   for (const t of lista) {
     if (t === "usuarios") {
@@ -468,13 +512,12 @@ app.post("/api/restore/preview", requiereAdmin, (req, res) => {
 });
 
 app.post("/api/restore", requiereAdmin, (req, res) => {
-  const { data, modo } = req.body; // modo: "reemplazar" | "fusionar"
+  const { data, modo } = req.body; 
   if (!data) return res.status(400).json({ error: "Archivo inválido" });
   const resultados = {};
   try {
     db.transaction(() => {
       if (modo === "reemplazar") {
-        // Borrar respetando orden de dependencias
         db.prepare("DELETE FROM ajustes_mezclador").run();
         db.prepare("DELETE FROM sesiones_mezclador").run();
         db.prepare("DELETE FROM detalle_tintas").run();
@@ -499,7 +542,7 @@ app.post("/api/restore", requiereAdmin, (req, res) => {
             const stmt = db.prepare(`INSERT OR ${modo === "reemplazar" ? "REPLACE" : "IGNORE"} INTO ${tabla} (${cols.join(",")}) VALUES (${placeholders})`);
             stmt.run(...cols.map(c => fila[c]));
             insertadas++;
-          } catch (e) { /* fila con conflicto, se salta */ }
+          } catch (e) { }
         }
         resultados[tabla] = insertadas;
       }
@@ -562,7 +605,6 @@ app.post("/api/importar/excel", requiereAdmin, upload.single("archivo"), async (
 
     const resultados = { clientes: 0, productos: 0, tintas: 0, errores: [] };
 
-    // Hoja "clientes" o "Clientes"
     const wsClientes = wb.getWorksheet("clientes") || wb.getWorksheet("Clientes");
     if (wsClientes) {
       const insC = db.prepare("INSERT OR IGNORE INTO clientes (nombre,contacto,telefono,email,direccion,notas) VALUES (?,?,?,?,?,?)");
@@ -574,12 +616,11 @@ app.post("/api/importar/excel", requiereAdmin, upload.single("archivo"), async (
             insC.run(String(nombre), String(row.getCell(2).value||""), String(row.getCell(3).value||""),
                      String(row.getCell(4).value||""), String(row.getCell(5).value||""), String(row.getCell(6).value||""));
             resultados.clientes++;
-          } catch (e) { /* duplicado */ }
+          } catch (e) { }
         }
       });
     }
 
-    // Hoja "productos"
     const wsProd = wb.getWorksheet("productos") || wb.getWorksheet("Productos") || wb.getWorksheet("catalogo_productos");
     if (wsProd) {
       const insP = db.prepare("INSERT OR IGNORE INTO catalogo_productos (codigo,nombre,categoria,maquina) VALUES (?,?,?,?)");
@@ -596,7 +637,6 @@ app.post("/api/importar/excel", requiereAdmin, upload.single("archivo"), async (
       });
     }
 
-    // Hoja "tintas"
     const wsTintas = wb.getWorksheet("tintas") || wb.getWorksheet("Tintas") || wb.getWorksheet("catalogo_tintas");
     if (wsTintas) {
       const insT = db.prepare("INSERT OR IGNORE INTO catalogo_tintas (codigo,nombre,categoria,maquina) VALUES (?,?,?,?)");
@@ -620,37 +660,18 @@ app.post("/api/importar/excel", requiereAdmin, upload.single("archivo"), async (
   }
 });
 
-// Plantilla de Excel para importar
 app.get("/api/importar/plantilla", async (req, res) => {
   const wb = new ExcelJS.Workbook();
-
   const wc = wb.addWorksheet("clientes");
-  wc.columns = [
-    { header: "nombre", key: "nombre", width: 30 },
-    { header: "contacto", key: "contacto", width: 20 },
-    { header: "telefono", key: "telefono", width: 15 },
-    { header: "email", key: "email", width: 25 },
-    { header: "direccion", key: "direccion", width: 30 },
-    { header: "notas", key: "notas", width: 30 }
-  ];
+  wc.columns = [ { header: "nombre", key: "nombre", width: 30 }, { header: "contacto", key: "contacto", width: 20 }, { header: "telefono", key: "telefono", width: 15 }, { header: "email", key: "email", width: 25 }, { header: "direccion", key: "direccion", width: 30 }, { header: "notas", key: "notas", width: 30 } ];
   wc.addRow({ nombre: "CLIENTE EJEMPLO", contacto: "Juan", telefono: "555-1234", email: "", direccion: "", notas: "" });
 
   const wp = wb.addWorksheet("productos");
-  wp.columns = [
-    { header: "codigo", key: "codigo", width: 12 },
-    { header: "nombre", key: "nombre", width: 30 },
-    { header: "categoria", key: "categoria", width: 18 },
-    { header: "maquina", key: "maquina", width: 10 }
-  ];
+  wp.columns = [ { header: "codigo", key: "codigo", width: 12 }, { header: "nombre", key: "nombre", width: 30 }, { header: "categoria", key: "categoria", width: 18 }, { header: "maquina", key: "maquina", width: 10 } ];
   wp.addRow({ codigo: "PROD1", nombre: "PRODUCTO EJEMPLO", categoria: "BASE AGUA", maquina: 64 });
 
   const wt = wb.addWorksheet("tintas");
-  wt.columns = [
-    { header: "codigo", key: "codigo", width: 12 },
-    { header: "nombre", key: "nombre", width: 25 },
-    { header: "categoria", key: "categoria", width: 18 },
-    { header: "maquina", key: "maquina", width: 10 }
-  ];
+  wt.columns = [ { header: "codigo", key: "codigo", width: 12 }, { header: "nombre", key: "nombre", width: 25 }, { header: "categoria", key: "categoria", width: 18 }, { header: "maquina", key: "maquina", width: 10 } ];
   wt.addRow({ codigo: "XX", nombre: "TINTA EJEMPLO", categoria: "INDUSTRIAL", maquina: 32 });
 
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -659,8 +680,6 @@ app.get("/api/importar/plantilla", async (req, res) => {
   res.end();
 });
 
-
-// Descargar backup en CSV (Excel)
 app.post("/api/backup/csv", (req, res) => {
   const { tablas } = req.body;
   const lista = (tablas && tablas.length ? tablas : TABLAS_BACKUP)
@@ -725,11 +744,9 @@ app.post("/api/respaldos/restaurar/:archivo", requiereAdmin, (req, res) => {
   const ruta = path.join(respaldos.CARPETA_LOCAL, archivo);
   if (!fs.existsSync(ruta)) return res.status(404).json({ error: "No existe" });
 
-  // Hacer respaldo del estado actual antes de restaurar
   const seguridad = respaldos.respaldarAhora(usuarioDe(req) + " (pre-restore)");
 
   try {
-    // Cerrar la BD antes de sobrescribir
     const dbPath = path.join(__dirname, "relma.db");
     db.close();
     fs.copyFileSync(ruta, dbPath);
@@ -741,7 +758,6 @@ app.post("/api/respaldos/restaurar/:archivo", requiereAdmin, (req, res) => {
   }
 });
 
-// Descargar .db crudo
 app.get("/api/backup/db", requiereAdmin, (req, res) => {
   const dbPath = path.join(__dirname, "relma.db");
   res.setHeader("Content-Disposition", "attachment; filename=relma_db_" + new Date().toISOString().slice(0,10) + ".db");
@@ -783,7 +799,7 @@ app.get("/api/buscar", (req, res) => {
   res.json({
     clientes: db.prepare("SELECT id, nombre FROM clientes WHERE nombre LIKE ? LIMIT 8").all(like),
     formulas: db.prepare(`
-      SELECT f.id, f.color, f.codigo, c.nombre AS cliente_nombre
+      SELECT f.id, f.color, f.codigo, f.producto, f.base, f.capacidad_madre, c.nombre AS cliente_nombre
       FROM formulas f JOIN clientes c ON c.id=f.cliente_id
       WHERE f.color LIKE ? OR f.codigo LIKE ? LIMIT 8`).all(like, like),
     productos: db.prepare("SELECT codigo, nombre, categoria FROM catalogo_productos WHERE nombre LIKE ? LIMIT 8").all(like)
@@ -794,11 +810,9 @@ app.get("/api/buscar", (req, res) => {
 app.post("/api/exportar-consulta", requiereAdmin, async (req, res) => {
   try {
     const html = generarConsultaMovil();
-    // Guardar en la carpeta de respaldos (que se sincroniza a Drive)
     const ruta = path.join(respaldos.CARPETA_LOCAL, "consulta_movil.html");
     fs.writeFileSync(ruta, html, "utf8");
 
-    // Intentar copiar a Drive también
     let copiadoDrive = false;
     try {
       const config = db.prepare("SELECT valor FROM config WHERE clave='pref_backup_drive'").get();
@@ -807,7 +821,7 @@ app.post("/api/exportar-consulta", requiereAdmin, async (req, res) => {
         fs.writeFileSync(destino, html, "utf8");
         copiadoDrive = true;
       }
-    } catch (e) { /* drive no disponible, ignorar */ }
+    } catch (e) { }
 
     logCambio(usuarioDe(req), "EXPORTAR_CONSULTA", "sistema", null, { drive: copiadoDrive });
     res.json({
@@ -820,7 +834,7 @@ app.post("/api/exportar-consulta", requiereAdmin, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
-// (función generada más abajo)
+
 function generarConsultaMovil() {
   const clientes = db.prepare("SELECT id, nombre, contacto, telefono FROM clientes WHERE activo=1 ORDER BY nombre").all();
   const formulas = db.prepare(`
@@ -838,7 +852,7 @@ function generarConsultaMovil() {
 
   const datos = { clientes, formulas, tintas: tintasPorFormula, empresa, fecha: new Date().toISOString() };
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -847,60 +861,40 @@ function generarConsultaMovil() {
 <meta name="theme-color" content="#0ea5e9">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-         background: #0f172a; color: #e2e8f0; padding-bottom: 80px; min-height: 100vh; }
-  header { background: #1e293b; padding: 12px 14px; position: sticky; top: 0; z-index: 50;
-           border-bottom: 2px solid #334155; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #0f172a; color: #e2e8f0; padding-bottom: 80px; min-height: 100vh; }
+  header { background: #1e293b; padding: 12px 14px; position: sticky; top: 0; z-index: 50; border-bottom: 2px solid #334155; }
   header h1 { font-size: 16px; color: #0ea5e9; margin-bottom: 8px; }
   .search-bar { position: relative; }
-  .search-bar input { width: 100%; background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
-                      border-radius: 8px; padding: 12px; font-size: 16px; }
+  .search-bar input { width: 100%; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; padding: 12px; font-size: 16px; }
   .search-bar input:focus { outline: none; border-color: #0ea5e9; }
   main { padding: 12px; max-width: 700px; margin: 0 auto; }
-  .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px;
-          padding: 14px; margin-bottom: 10px; cursor: pointer; transition: all .15s; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: all .15s; }
   .card:active { transform: scale(0.98); border-color: #0ea5e9; }
   .card h3 { font-size: 15px; color: #0ea5e9; margin-bottom: 4px; }
   .card .sub { font-size: 13px; color: #94a3b8; }
-  .badge { display: inline-block; background: #0ea5e9; color: white; font-size: 11px;
-           padding: 2px 8px; border-radius: 10px; margin-top: 6px; }
-  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 100;
-           display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .badge { display: inline-block; background: #0ea5e9; color: white; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-top: 6px; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 12px; }
   .modal.oculto { display: none; }
-  .modal-caja { background: #1e293b; border: 1px solid #334155; border-radius: 12px;
-                padding: 18px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+  .modal-caja { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 18px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
   .modal-caja h3 { color: #0ea5e9; margin-bottom: 12px; font-size: 17px; }
   .modal-caja p { margin-bottom: 6px; font-size: 14px; }
   .modal-caja p b { color: #94a3b8; font-weight: normal; }
-  .tinta-row { display: flex; justify-content: space-between; padding: 8px 0;
-               border-bottom: 1px solid #334155; font-size: 14px; }
+  .tinta-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 14px; }
   .tinta-row:last-child { border-bottom: none; }
   .tinta-row .nombre { font-weight: bold; color: #38bdf8; }
   .tinta-row .cantidad { font-family: Consolas, monospace; color: #4ade80; }
   .acciones { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
-  button { padding: 10px 16px; border-radius: 8px; cursor: pointer; border: none;
-           font-weight: bold; font-size: 14px; }
+  button { padding: 10px 16px; border-radius: 8px; cursor: pointer; border: none; font-weight: bold; font-size: 14px; }
   button.primario { background: #0ea5e9; color: white; }
   button.secundario { background: #334155; color: #e2e8f0; }
   .info { text-align: center; padding: 40px 20px; color: #94a3b8; }
   .info .num { font-size: 42px; font-weight: bold; color: #0ea5e9; margin-bottom: 6px; }
   .info .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
   .footer-info { text-align: center; padding: 20px; color: #64748b; font-size: 11px; }
-  .filtro-cliente { background: #334155; color: #e2e8f0; border: 1px solid #475569;
-                    border-radius: 6px; padding: 8px; width: 100%; margin-top: 8px; font-size: 14px; }
-  @media print {
-    body { background: white; color: black; }
-    header, .acciones, .footer-info { display: none; }
-    .modal { position: static; background: white; padding: 0; }
-    .modal-caja { background: white; color: black; border: 2px solid black; max-height: none; }
-    .tinta-row { border-bottom: 1px solid #999; }
-    .tinta-row .nombre { color: black; }
-    .tinta-row .cantidad { color: black; }
-  }
+  .filtro-cliente { background: #334155; color: #e2e8f0; border: 1px solid #475569; border-radius: 6px; padding: 8px; width: 100%; margin-top: 8px; font-size: 14px; }
 </style>
 </head>
 <body>
-
 <header>
   <h1>🎨 ${empresa} — Consulta</h1>
   <div class="search-bar">
@@ -910,7 +904,6 @@ function generarConsultaMovil() {
     <option value="">— Todos los clientes —</option>
   </select>
 </header>
-
 <main>
   <div class="info" id="stats">
     <div class="num" id="statsNum">0</div>
@@ -922,14 +915,11 @@ function generarConsultaMovil() {
     Última actualización de datos: <span id="fechaAct"></span>
   </div>
 </main>
-
 <div class="modal oculto" id="modalDetalle">
   <div class="modal-caja" id="detalleCaja"></div>
 </div>
-
 <script>
 const DATOS = ${JSON.stringify(datos)};
-
 const $ = s => document.querySelector(s);
 
 function formatearFecha(iso) {
@@ -977,42 +967,47 @@ function pintarLista() {
     return;
   }
 
-  cont.innerHTML = filtradas.slice(0, 200).map(f => \`
-    <div class="card" onclick="verFormula(\${f.id})">
-      <h3>\${f.color}</h3>
-      <div class="sub">\${f.cliente_nombre}</div>
-      <div class="sub">\${f.producto || ""} · \${f.base || ""}</div>
-      <div class="badge">\${f.capacidad_madre} LT · \${f.maquina === 64 ? "Arq." : "Ind."}</div>
-    </div>
-  \`).join("");
+  let html = "";
+  filtradas.slice(0, 200).forEach(f => {
+    html += '<div class="card" onclick="verFormula(' + f.id + ')">';
+    html += '<h3>' + f.color + '</h3>';
+    html += '<div class="sub">' + f.cliente_nombre + '</div>';
+    html += '<div class="sub">' + (f.producto || "") + ' · ' + (f.base || "") + '</div>';
+    html += '<div class="badge">' + f.capacidad_madre + ' LT · ' + (f.maquina === 64 ? "Arq." : "Ind.") + '</div>';
+    html += '</div>';
+  });
+  cont.innerHTML = html;
 }
 
 function verFormula(id) {
   const f = DATOS.formulas.find(x => x.id === id);
   if (!f) return;
   const tintas = DATOS.tintas[id] || [];
-  const tintasHTML = tintas.map(t => \`
-    <div class="tinta-row">
-      <span class="nombre">\${t.tinta}</span>
-      <span class="cantidad">\${t.cantidad_texto}</span>
-    </div>
-  \`).join("");
+  
+  let tintasHTML = "";
+  tintas.forEach(t => {
+    tintasHTML += '<div class="tinta-row">';
+    tintasHTML += '<span class="nombre">' + t.tinta + '</span>';
+    tintasHTML += '<span class="cantidad">' + t.cantidad_texto + '</span>';
+    tintasHTML += '</div>';
+  });
 
-  $("#detalleCaja").innerHTML = \`
-    <h3>\${f.color}</h3>
-    <p><b>Cliente:</b> \${f.cliente_nombre}</p>
-    <p><b>Producto:</b> \${f.producto || "-"}</p>
-    <p><b>Base:</b> \${f.base || "-"}</p>
-    <p><b>Capacidad:</b> \${f.capacidad_madre} LT · <b>Máquina:</b> \${f.maquina === 64 ? "Arquitectónica" : "Industrial"}</p>
-    \${f.codigo ? '<p><b>Código:</b> ' + f.codigo + '</p>' : ""}
-    \${f.notas ? '<p><b>Notas:</b> ' + f.notas + '</p>' : ""}
-    <h4 style="margin-top:14px; color:#0ea5e9; font-size:14px;">Tintas:</h4>
-    \${tintasHTML}
-    <div class="acciones">
-      <button class="secundario" onclick="cerrarModal()">Cerrar</button>
-      <button class="primario" onclick="imprimirFormula(\${id})">🖨 Imprimir</button>
-    </div>
-  \`;
+  let html = '';
+  html += '<h3>' + f.color + '</h3>';
+  html += '<p><b>Cliente:</b> ' + f.cliente_nombre + '</p>';
+  html += '<p><b>Producto:</b> ' + (f.producto || "-") + '</p>';
+  html += '<p><b>Base:</b> ' + (f.base || "-") + '</p>';
+  html += '<p><b>Capacidad:</b> ' + f.capacidad_madre + ' LT · <b>Máquina:</b> ' + (f.maquina === 64 ? "Arquitectónica" : "Industrial") + '</p>';
+  if (f.codigo) html += '<p><b>Código:</b> ' + f.codigo + '</p>';
+  if (f.notas) html += '<p><b>Notas:</b> ' + f.notas + '</p>';
+  html += '<h4 style="margin-top:14px; color:#0ea5e9; font-size:14px;">Tintas:</h4>';
+  html += tintasHTML;
+  html += '<div class="acciones">';
+  html += '<button class="secundario" onclick="cerrarModal()">Cerrar</button>';
+  html += '<button class="primario" onclick="imprimirFormula(' + id + ')">🖨 Imprimir</button>';
+  html += '</div>';
+
+  $("#detalleCaja").innerHTML = html;
   $("#modalDetalle").classList.remove("oculto");
 }
 
@@ -1025,35 +1020,156 @@ function imprimirFormula(id) {
   if (!f) return;
   const tintas = DATOS.tintas[id] || [];
   const w = window.open("", "_blank");
-  w.document.write(\`<html><head><title>\${f.color}</title>
-    <style>body{font-family:Arial;padding:20px;} h1{color:#0284c7;} table{width:100%; border-collapse:collapse; margin-top:16px;} td,th{padding:8px; border-bottom:1px solid #ddd; text-align:left;} th{background:#0284c7; color:white;}</style>
-    </head><body>
-    <h1>\${DATOS.empresa}</h1><h2>\${f.color}</h2>
-    <p><b>Cliente:</b> \${f.cliente_nombre}<br><b>Producto:</b> \${f.producto || "-"}<br><b>Base:</b> \${f.base || "-"}<br><b>Capacidad:</b> \${f.capacidad_madre} LT<br><b>Fecha:</b> \${new Date().toLocaleString("es-MX")}</p>
-    <table><tr><th>Tinta</th><th>Cantidad</th></tr>\${tintas.map(t => '<tr><td>' + t.tinta + '</td><td><b>' + t.cantidad_texto + '</b></td></tr>').join("")}</table>
-    </body></html>\`);
+  let html = '<html><head><title>' + f.color + '</title><style>body{font-family:Arial;padding:20px;} h1{color:#0284c7;} table{width:100%; border-collapse:collapse; margin-top:16px;} td,th{padding:8px; border-bottom:1px solid #ddd; text-align:left;} th{background:#0284c7; color:white;}</style></head><body>';
+  html += '<h1>' + DATOS.empresa + '</h1><h2>' + f.color + '</h2>';
+  html += '<p><b>Cliente:</b> ' + f.cliente_nombre + '<br><b>Producto:</b> ' + (f.producto || "-") + '<br><b>Base:</b> ' + (f.base || "-") + '<br><b>Capacidad:</b> ' + f.capacidad_madre + ' LT<br><b>Fecha:</b> ' + new Date().toLocaleString("es-MX") + '</p>';
+  html += '<table><tr><th>Tinta</th><th>Cantidad</th></tr>';
+  tintas.forEach(t => { html += '<tr><td>' + t.tinta + '</td><td><b>' + t.cantidad_texto + '</b></td></tr>'; });
+  html += '</table></body></html>';
+  w.document.write(html);
   w.document.close();
   setTimeout(() => w.print(), 300);
 }
 
 $("#buscar").addEventListener("input", pintarLista);
 $("#filtroCliente").addEventListener("change", pintarLista);
-$("#modalDetalle").addEventListener("click", e => {
-  if (e.target.id === "modalDetalle") cerrarModal();
-});
-
+$("#modalDetalle").addEventListener("click", e => { if (e.target.id === "modalDetalle") cerrarModal(); });
 $("#fechaGen").textContent = new Date().toLocaleString("es-MX");
 $("#fechaAct").textContent = formatearFecha(DATOS.fecha);
-
 pintarFiltroClientes();
 pintarLista();
 </script>
 </body>
 </html>`;
+
+  return html;
 }
 module.exports._generarConsultaHTML = function(datos) {
   return generarConsultaMovil._html ? generarConsultaMovil._html(datos) : "";
 };
+
+app.post('/api/color/buscar-rgb', (req, res) => {
+  const { r, g, b } = req.body;
+  if (r === undefined || g === undefined || b === undefined) {
+    return res.status(400).json({ error: "Faltan valores RGB" });
+  }
+
+  const colores = db.prepare("SELECT * FROM colores_rgb WHERE rgb_r IS NOT NULL").all();
+
+  if (!colores.length) {
+    return res.status(404).json({ error: "No hay colores RGB cargados en la base de datos" });
+  }
+
+  let masCercano = null;
+  let distanciaMinima = Infinity;
+
+  for (const color of colores) {
+    const distancia = Math.sqrt(
+      Math.pow(color.rgb_r - r, 2) +
+      Math.pow(color.rgb_g - g, 2) +
+      Math.pow(color.rgb_b - b, 2)
+    );
+    if (distancia < distanciaMinima) {
+      distanciaMinima = distancia;
+      masCercano = color;
+      masCercano.distancia = Math.round(distancia);
+    }
+  }
+
+  res.json(masCercano);
+});
+
+app.post('/api/color/formula', (req, res) => {
+  const { codigo, tipo_pintura } = req.body;
+  if (!codigo || !tipo_pintura) {
+    return res.status(400).json({ error: "Faltan código o tipo de pintura" });
+  }
+
+  const formulas = db.prepare(`
+    SELECT * FROM colores_linea
+    WHERE codigo = ? AND tipo_pintura = ?
+    ORDER BY base_color, variante
+  `).all(codigo, tipo_pintura);
+
+  res.json(formulas);
+});
+
+app.post('/api/color/formula-codigo', (req, res) => {
+  const { codigo } = req.body;
+  if (!codigo) return res.status(400).json({ error: "Falta el código" });
+
+  const formulas = db.prepare(`
+    SELECT * FROM colores_linea
+    WHERE codigo = ? OR codigo LIKE ?
+    ORDER BY tipo_pintura, base_color
+  `).all(codigo, `%${codigo}%`);
+
+  res.json(formulas);
+});
+
+app.post('/api/comparar-formulas', (req, res) => {
+  const { tintas_usuario, tipo_pintura } = req.body;
+  
+  if (!tintas_usuario || tintas_usuario.length === 0) {
+    return res.status(400).json({ error: "No enviaste tintas para comparar" });
+  }
+
+  const formulasDB = db.prepare(`SELECT * FROM colores_linea WHERE tipo_pintura = ?`).all(tipo_pintura);
+  if (!formulasDB.length) return res.json([]);
+
+  const vectorUsuario = {};
+  tintas_usuario.forEach(t => {
+    if (t.cantidad_en_128 > 0) {
+      vectorUsuario[t.tinta] = (vectorUsuario[t.tinta] || 0) + t.cantidad_en_128;
+    }
+  });
+
+  let magUsuario = 0;
+  for (const key in vectorUsuario) magUsuario += Math.pow(vectorUsuario[key], 2);
+  magUsuario = Math.sqrt(magUsuario);
+
+  const resultados = [];
+
+  for (const f of formulasDB) {
+    let colorantesDB = [];
+    try { colorantesDB = JSON.parse(f.colorantes); } catch(e) {}
+    
+    const vectorDB = {};
+    colorantesDB.forEach(c => {
+      const cant128 = Math.round((c.oz_galon || 0) * 128);
+      if (cant128 > 0) {
+        vectorDB[c.tinta] = (vectorDB[c.tinta] || 0) + cant128;
+      }
+    });
+
+    let magDB = 0;
+    for (const key in vectorDB) magDB += Math.pow(vectorDB[key], 2);
+    magDB = Math.sqrt(magDB);
+
+    if (magDB === 0) continue;
+
+    let productoPunto = 0;
+    for (const tinta in vectorUsuario) {
+      if (vectorDB[tinta]) {
+        productoPunto += vectorUsuario[tinta] * vectorDB[tinta];
+      }
+    }
+
+    const similitud = productoPunto / (magUsuario * magDB);
+    const porcentaje = Math.round(similitud * 100);
+
+    if (porcentaje >= 50) {
+      resultados.push({
+        ...f,
+        porcentaje_similitud: porcentaje
+      });
+    }
+  }
+
+  resultados.sort((a, b) => b.porcentaje_similitud - a.porcentaje_similitud);
+
+  res.json(resultados.slice(0, 10));
+});
 
 // ==================== INICIO ====================
 const PORT = process.env.PORT || 3000;
@@ -1063,7 +1179,6 @@ app.listen(PORT, () => {
   console.log("  admin / admin123");
   console.log("========================================");
 
-  // Arrancar respaldos automáticos con lo que esté en config
   try {
     const horas = db.prepare("SELECT valor FROM config WHERE clave='pref_backup_horas'").get();
     const drive = db.prepare("SELECT valor FROM config WHERE clave='pref_backup_drive'").get();
@@ -1072,7 +1187,6 @@ app.listen(PORT, () => {
       drive: drive ? drive.valor : null,
     });
 
-    // Generar consulta móvil cada 6 horas
     const generarConsulta = () => {
       try {
         const html = generarConsultaMovil();
@@ -1086,10 +1200,6 @@ app.listen(PORT, () => {
         console.log("→ Consulta móvil generada (" + Math.round(html.length/1024) + " KB)");
       } catch(e) { console.error("Error generando consulta:", e.message); }
     };
-    // Generar una al arrancar
-    setTimeout(generarConsulta, 3000);
-    // Y cada 6 horas
-    setInterval(generarConsulta, 6 * 60 * 60 * 1000);
   } catch (e) {
     console.error("Error configurando respaldos:", e.message);
   }

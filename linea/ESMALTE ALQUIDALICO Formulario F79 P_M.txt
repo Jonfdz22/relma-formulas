@@ -1,0 +1,847 @@
+  RAL COLOR SYSTEM
+ Base Definitions: Esmalte alquidalico de secado rápido estructureros
+ Base Definitions:
+ Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+ Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+ Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                              Gallon                     Five Gallon
+         Color Name            RAL      Base Type         Colorants
+                                                                         oz    32    64   128    oz         32    64 128
+Green Beige                                          LB                         4    1                      22     1
+                               1000     Ultradeep    MY                  2     23    1           13         21     1
+                                                     UO                         1                           5
+                                                     TW                  9      2                45         10
+Beige                                                BU                  1      2    1           5          12     1
+                               1001     Ultradeep    MY                  1     25                8          29
+                                                     TW                  9      4          1     45         21        1
+
+Sand Yellow                                          BU                  1                       5
+                               1002     Ultradeep    MY                  3     24                18
+                                                     TW                  7     10                36
+
+Signal Yellow                                        OY                  9                       45
+                               1003     Ultradeep    MY                  2     26                14        2
+                                                     UO                        2                           10
+                                                     TW                        6                           30
+
+                                      Vivid Yellow   UO                         2                          10
+                                                     QR                         1                          5
+
+Golden Yellow                  1004     Ultradeep    OY                  4     22                23        14
+                                                     BU                        6                           30
+                                                     MY                  6     16                32        16
+                                                     TW                        20                3         4
+Honey Yellow            1005            Ultradeep
+No match Possible
+Maize Yellow            1006            Ultradeep    QR                        2                           10
+                                                     OY                  11    20               58       4
+                                                     MY                        10               1        18
+
+                                      Vivid Yellow QR                           2                          10
+
+Daffodil Yellow         1007            Ultradeep    QR                        4                           20
+                                                     OY                  11    28                59        12
+
+                                      Vivid Yellow UO                           2                          10
+                                                   LB                                1                           5
+
+Brown Beige             1011            Ultradeep    LB                        6     1           1               1
+                                                     RO                        9     1           1         15    1
+                                                     YO                  5     9     1           26        15    1
+                                                     TW                  3     25    1           18        31    1
+Lemon Yellow            1012            Ultradeep    LB                        1                           5
+                                                     OY                  5     9                 26        13
+                                                     MY                  4     25                23        29
+                                                     TW                  1     28                9         12
+
+        Oyster White           1013    Extrawhite            LB                      1                           5
+                                                             RO                            1               1          1
+                                                             YO                 5          1               25         5
+
+              Ivory            1014    Extrawhite            LB                      3                           15
+                                                             YO          1     12    1               6     30     1
+         Light Ivory           1015     Ultradeep            LB                      1     1               3      1   1
+                                                             RO                      1                     2      1
+                                                             YO                29                4         17
+        Sulfur Yellow          1016     Ultradeep            OY          8     8                 41        8
+                                                             TW          3     24                18        24
+
+                                                          Page 1 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                   Gallon               Five Gallon
+     Color Name         RAL      Base Type     Colorants
+                                                              oz    32    64   128   oz    32    64 128
+    Saffron Yellow       1017     Ultradeep       QR                 6                     30
+                                                  BU                 1                     5
+                                                  MY          7     12    1          36    30     1
+                                                  TW          4     12    1     1    21    31     1  1
+     Zinc Yellow         1018     Ultradeep       OY          7                      35
+                                                  MY          1     28               9     12
+                                                  TW          3     4                15    20
+
+                                Vivid Yellow   F79YJ5000
+
+      Grey Beige         1019     Ultradeep       LB                15               2     11
+                                                  RO                12               1     28
+                                                  MY          2     6                10    30
+                                                  TW          8     30               44    22
+
+     Olive Yellow        1020     Ultradeep       LB
+                                                  MY
+                                                  UO
+                                                  TW
+   Flax Seed Yellow      1021     Ultradeep
+
+   No match Possible            Vivid Yellow
+
+    Traffic Yellow       1023     Ultradeep       OY          10    20               53    4
+                                                  MY           1    12               6     28
+
+                                Vivid Yellow      QR                 2                     10
+                                                  LB                            1                   5
+     Ochre Yellow        1024     Ultradeep       LB                6                      30
+                                                  MY          7     12               36    28
+                                                  UO                18               2     26
+                                                  TW          3     28               19    12
+        Curry            1027     Ultradeep       PG                3                      15
+                                                  OY          9     21               48    9
+                                                  RO                3                      15
+                                                  MY          2     6                10    30
+    Melon Yellow         1028     Ultradeep
+   No match Possible
+
+                                Vivid Yellow
+
+    Broom Yellow         1032     Ultradeep       OY          8     8                41    8
+                                                  BU                5                      25
+                                                  MY          3     3                15    15
+                                                  TW                16               2     16
+     Dahlia Yellow       1033     Ultradeep       MY          10    16          1    52    17       1
+                                                  UO                9     1     1    1     16   1   1
+                                                  TW          1     5     1     1    5     28   1   1
+                                                  UO                10    1          1     20   1
+                                Vivid Yellow      MY          2     22          1    13    15
+                                                  YO
+     Pastel Yellow       1034     Ultradeep       PB                      1     1          3    1   1
+                                                  MY          6     29    1     1    34    20   1   1
+                                                  UO                24    1     1    3     27   1   1
+                                                  TW          4     8     1     1    21    11   1   1
+                                                  UO                10    1          1     20   1
+                                Vivid Yellow      MY          2     22          1    13    15
+                                                  YO                4                      20
+                                               Page 2 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                   Gallon               Five Gallon
+      Color Name        RAL      Base Type     Colorants
+                                                              oz    32    64   128   oz    32    64 128
+      Sun Yellow         1037     Ultradeep       QR                 4                     20
+                                                  MY          11    16               57    16
+                                                  TW                12               1     28
+                                                  UO                10    1          1     20     1
+                                                  MY          2     22          1    13    15
+                                Vivid Yellow
+
+    Yellow Orange        2000     Ultradeep
+   No match Possible
+     Red Orange          2001     Ultradeep       OY          4     16               22    16
+                                                  QV                13    1          2     3    1
+                                                  MY          4     31    1     1    24    30   1   1
+                                                  UO          2     2     1          10    12   1
+
+       Vermillion        2002     Ultradeep       QR          4     7                21    3
+                                                  MY          7     25               38    29
+     Pastel Orange       2003     Ultradeep       MY          8     6                40    30
+                                                  UO          2     4                10    20
+                                                  TW          1     22          1    8     15       1
+                                Vivid Yellow
+                                                  UO          1     28               9     12
+
+     Pure Orange         2004     Ultradeep       OY          8                      40
+                                                  MY          1     14               7     6
+                                                  UO          2     20               13    4
+
+   Bright Red Orange     2008     Ultradeep       MY          9     8                46    8
+                                                  UO          2     8                11    8
+                                                  TW                16               2     16
+
+                                Vivid Yellow      UO          2     12               11    28
+
+     Traffic Orange      2009     Ultradeep       OY          9     22               48    14
+                                                  MY                14               2     6
+                                                  UO          1     28               9     12
+                                Vivid Yellow
+                                                  UO          2     12               11    28
+                                                  QR                13    1     1    2     4    1   1
+     Signal Orange       2010     Ultradeep       RO                10               1     18
+                                                  MY          9     4                45    20
+                                                  UO          2     16               12    16
+     Deep Orange         2011     Ultradeep       QV                1     1                7    1
+                                                  MY          9     29               49    17
+                                                  UO          1     16          1    7     17       1
+                                                  TW                17          1    2     22       1
+    Salmon Orange        2012     Ultradeep       QV                12               1     28
+                                                  MY          3     24               18    24
+                                                  UO          4     14               22    6
+                                                  TW          3     14               17    6
+       Flame Red         3000     Ultradeep       QR          2     10    1     1    11    21   1   1
+                                                  OY          9     8           1    46    9        1
+                                                  QV                13               2     1
+      Signal Red         3001     Ultradeep       QR          8     27               44    7
+                                                  UO          3     5                15    25
+     Carmine Red         3002     Ultradeep       QR          8     20               43    4
+                                                  YO          1     28               9     12
+                                                  UO          1     16               7     16
+                                               Page 3 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                  Gallon                 Five Gallon
+     Color Name         RAL      Base Type    Colorants
+                                                             oz    32    64   128   oz      32    64 128
+      Ruby Red           3003     Ultradeep      QR          9      2               45      10
+                                                 OY          2      4    1          10      22     1
+                                                 QV                25    1          3       31     1
+      Purple Red         3004     Ultradeep      QR          1      5    1     1    5       28     1  1
+                                                 OY          3     26    1          19      4      1
+                                                 QV          6     31    1     1    34      30     1  1
+      Wine Red           3005     Ultradeep      BU          2      6          1    10      31        1
+                                                 RO                24    1     1    3       27     1  1
+                                                 QV          8     12    1          41      30     1
+                                                 TW                 1                       5
+      Black Red          3007     Ultradeep      LB                19    1          3       1      1
+                                                 RO                22    1     1    3       17     1  1
+                                                 QV          6     22               33      14
+      Oxide Red          3009     Ultradeep      QR          2     25    1     1    14             1  1
+                                                 BU          4     20               23      4
+                                                 RO                26    1          4       4      1
+                                                 TW                18    1          2       28     1
+      Brown Red          3011     Ultradeep      QR          4     11          1    21      24        1
+                                                 RO          1     29               9       17
+                                                 QV          2     14          1    12      7         1
+
+      Beige Red          3012     Ultradeep      LB                 1    1     1           8     1   1
+                                                 RO          1                 1    5      1         1
+                                                 YO          1     2                5      11        1
+                                                 TW          8     21               43     9
+     Tomato Red          3013     Ultradeep      QR          1     20               8      4
+                                                 RO          1     10               6      18
+                                                 QV          1     12               6      28
+                                                 UO          7     13               37     1
+                                                 TW                10               1      18
+     Antique Pink        3014     Ultradeep      QR          2     18               12     26
+                                                 QV                10               1      18
+                                                 YO          2     14               12     6
+                                                 TW          6     24               33     24
+      Light Pink         3015    Extrawhite      QR                27               4      7
+                                                 QV                6                       30
+                                                 YO                24          4    3      29
+      Coral Red          3016     Ultradeep      QR          2     11          1    11     24        1
+                                                 RO          1     30    1     1    9      25    1   1
+                                                 UO          5     9           1    26     14        1
+                                                 TW          1     3     1     1    5      18    1   1
+
+
+
+
+                                              Page 4 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                  Gallon                 Five Gallon
+     Color Name         RAL      Base Type    Colorants
+                                                             oz    32    64   128   oz      32    64 128
+         Rose            3017     Ultradeep      QR          1     26               9       2
+                                                 QV                20               3       4
+                                                 UO          4     28               24      12
+                                                 TW          4     20               23      4
+    Strawberry Red       3018     Ultradeep      QR          5                      25
+                                                 OY          2     24               13     24
+                                                 UO          1     28               9      12
+                                                 TW          2     12               11     28
+     Traffic Red         3020     Ultradeep      QR          4     24               23     24
+                                                 UO          7     8                36     8
+
+
+     Salmon Pink         3022     Ultradeep      QR          2                      10
+                                                 QV                9                1      13
+                                                 MY          6     10               31     18
+                                                 TW          3     14               17     6
+    Raspberry Red        3031     Ultradeep      QR
+                                                 OY
+                                                 YO
+                                                 TW
+      Orient Red         3031     Ultradeep      QR          7     12    1     1    36     31    1   1
+                                                 OY                16    1          2      18    1
+                                                 YO          3     14          1    17     7         1
+                                                 TW                20          1    3      5         1
+
+
+      Red Lilac          4001     Ultradeep      LB                8                1      8
+                                                 RO                6                       30
+                                                 QV          5     4                25     20
+                                                 TW          6     14               32     6
+      Red Violet         4002     Ultradeep      QR          3     4                15     20
+                                                 QV          3     18               17     26
+                                                 YO          3     14               17     6
+                                                 TW          1     28               9      12
+    Heather Violet       4003     Ultradeep      QR          3     30               19     22
+                                                 QV                23               3      19
+                                                 MY                16               2      16
+                                                 TW           6    27               34     7
+     Claret Violet       4004     Ultradeep      BU           1    13               7      1
+                                                 QV          10    4                50     20
+                                                 TW                15               2      11
+
+      Blue Lilac         4005     Ultradeep      PG                22               3      14
+                                                 QR          1     14               7      6
+                                                 QV          3                      15
+                                                 TW          6     28               34     12
+
+
+
+
+                                              Page 5 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                  Gallon                 Five Gallon
+      Color Name        RAL      Base Type    Colorants
+                                                             oz    32    64   128   oz      32    64 128
+     Traffic Purple      4006     Ultradeep      PB                 3                       15
+                                                 QR          6     15               32      11
+                                                 QV          2      6               10      30
+                                                 TW          3      8               16      8
+     Signal Violet       4008     Ultradeep      PB                11               1       23
+                                                 QR          5     11               26      23
+                                                 QV          1     20               8       4
+                                                 TW          4     22               23      14
+     Pastel Violet       4009    Extrawhite      LB                19               2       31
+                                                 QR                29               4       17
+                                                 RO                10               1       18
+
+     Telemagenta         4010     Ultradeep      QR          7     16               37     16
+                                                 OY                3                       15
+                                                 QV                13               2      1
+                                                 TW          4                      20
+      Violet Blue        5000     Ultradeep      LB
+                                                 PB
+                                                 QR
+                                                 TW
+      Green Blue         5001     Ultradeep      LB          1                      5
+                                                 PB          5     2     1     1    25     13    1   1
+                                                 BU                2                       10
+                                                 TW          2     8                11     8
+   Ulltramarine Blue     5002     Ultradeep      PB          8     16               42     16
+                                                 QR          1     26               9      2
+                                                 TW          1     22               8      14
+     Sapphire Blue       5003     Ultradeep      LB                22    1     1    3      17    1   1
+                                                 PB          6     14    1     1    32     9     1   1
+                                                 QV          3     8                16     8
+                                                 TW          1     18    1          7      28    1
+
+      Black Blue         5004     Ultradeep      LB          1     18    1          7      28    1
+                                                 PB          4     18          1    22     27        1
+                                                 QV          1     21    1     1    8      12    1   1
+                                                 TW                5           1           26        1
+      Signal Blue        5005     Ultradeep      PB          10    8           1    51     9         1
+                                                 MY                2           1           11        1
+                                                 TW          1     21    1          8      11    1
+
+     Brillant Blue       5007     Ultradeep      LB                24               3      24
+                                                 PB          3     25               18     29
+                                                 QR          1     1                5      5
+                                                 TW          6     14               32     6
+      Grey Blue          5008     Ultradeep      LB          3     24               18     24
+                                                 PB          1     14    1     1    7      9     1   1
+                                                 QV                13          1    2      2         1
+                                                 TW          2     12               11     28
+      Azure Blue         5009     Ultradeep      LB                31    1          4      29    1
+                                                 PB          3     24    1          18     26    1
+                                                 YO                1     1                 7     1
+                                                 TW          3     24    1          18     26    1
+
+
+
+
+                                              Page 6 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                  Gallon               Five Gallon
+     Color Name         RAL      Base Type    Colorants
+                                                             oz    32    64   128   oz    32    64 128
+     Gentian Blue        5010     Ultradeep      PB          3     24               18    24
+                                                 UO          1     14    1     1    7     9      1  1
+                                                 TW                13               2     2         1
+                                                             2     12               11    28
+      Steel Blue         5011     Ultradeep      LB                31    1     1    4     30     1  1
+                                                 PB          6      4               30    20
+                                                 QV          1      1          1    5     6         1
+                                                 TW                16    1          2     18     1
+      Light Blue         5012     Ultradeep      LB                 6                     30
+                                                 PB          3     24               18    24
+                                                 QR                 4                     20
+                                                 TW          7     30               39    22
+
+     Cobalt Blue         5013     Ultradeep      PB          6     8                31    8
+                                                 RO                5                      25
+                                                 QV          4     16               22    16
+                                                 TW          1     1                5     5
+     Pigeon Blue         5014     Ultradeep      LB                25    1          3     31   1
+                                                 PB          1     9     1     1    6     16   1   1
+                                                 QR                24    1          3     26   1
+                                                 TW          8     24    1          43    26   1
+       Sky Blue          5015     Ultradeep      PB          5     20               28    4
+                                                 UO                8                1     8
+                                                 TW          6     4                30    20
+
+     Traffic Blue        5017     Ultradeep      PB          9     6                45    30
+                                                 OY                10               1     18
+                                                 TW          2     16               12    16
+
+    Turquoise Blue       5018     Ultradeep      PB          1     20    1     1    8     7    1   1
+                                                 PG          2     13    1          12    3    1
+                                                 BU          1           1          5     3    1   1
+                                                 TW          6     29               34    17
+     Capri Blue          5019     Ultradeep      PB          5     16               27    16
+                                                 PG          1     28               9     12
+                                                 QR          1     2                5     10
+                                                 TW          3     16               17    16
+      Ocean Blue         5020     Ultradeep      PB          8     1                40    5
+                                                 OY          3     1     1          15    7    1
+                                                 MY                13          1    2     2        1
+                                                 TW                16    1          2     18   1
+      Water Blue         5021     Ultradeep      PB          2     16          1    12    17       1
+                                                 PG          4     7           1    21    4
+                                                 BU                27    1          4     9    1
+                                                 TW          4     12    1     1    21    31   1   1
+
+      Night Blue         5022     Ultradeep      PB          5     26               29    2
+                                                 QR          5                      25
+                                                 TW          1      6               5     30
+
+
+
+
+                                              Page 7 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                  Gallon                 Five Gallon
+     Color Name         RAL      Base Type    Colorants
+                                                             oz    32    64   128   oz      32    64 128
+     Distant Blue        5023     Ultradeep      LB                23    1          3       21     1
+                                                 PB          2     22          1    13      15        1
+                                                 QR          1     11          1    6       24        1
+                                                 TW          7      7          1    36      4         1
+      Pastel Blue        5024    Extrawhite      LB                16               2       16
+                                                 PB          1     10               6       18
+                                                 QR                 4                       20
+     Patina Green        6000     Ultradeep      LB                23    1          3       21     1
+                                                 PG          4     14    1          22      8      1
+                                                 YO          1     30    1          9       24     1
+                                                 TW          4     16          1    22      17        1
+    Emerald Green        6001     Ultradeep      LB                 9               6       4         1
+                                                 PG          3     16               3       7      1  1
+                                                 MY          7     17               25      21        1
+                                                 TW                22               3       14     1  1
+
+     Blue Green          6004     Ultradeep      LB          1     6                5      30
+                                                 PB                14               2      8     1
+                                                 PG          5     21          1    28     10        1
+                                                 TW          1     11    1     1    6      26    1   1
+     Moss Green          6005     Ultradeep      LB                12               1      28
+                                                 PG          9     12               46     28
+                                                 YO          2     8                11     8
+
+      Grey Olive         6006     Ultradeep      LB                16               2      16
+                                                 PG          1     3           1    5      16        1
+                                                 BU          5     17    1          27     23    1
+                                                 TW                27          1    4      8         1
+     Bottle Green        6007     Ultradeep      PG          2     5                10     25
+                                                 OY          4     26               24     2
+                                                 BU          4     31          1    24     28        1
+                                                 TW                1     1                 7     1
+     Brown Green         6008     Ultradeep      PG          1     17               7      21
+                                                 BU          7     7     1          36     5     1
+                                                 YO                18    1     1    2      29    1   1
+      Fir Green          6009     Ultradeep      LB          1     26    1     1    9      5     1   1
+                                                 PG          1     26    1     1    9      5     1   1
+                                                 MY          4     10    1     1    21     21    1   1
+
+     Grass Green         6010     Ultradeep      PG          1           1          5      2     1
+                                                 OY          9     9                46     13
+                                                 BU          1     4     1     1    5      23    1   1
+                                                 TW                18               2      26
+     Reed Green          6013     Ultradeep      LB          1     3                5      15
+                                                 RO                3     1                 17    1
+                                                 MY          4     16    1          22     18    1
+                                                 TW          4     25          1    23     30        1
+
+
+
+
+                                              Page 8 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                   Gallon                 Five Gallon
+      Color Name        RAL      Base Type     Colorants
+                                                              oz    32    64   128   oz      32    64 128
+     Yellow Olive        6014     Ultradeep       PB          2     26               14      2
+                                                  RO          1     24               8       24
+                                                  MY          7     16               37      16
+
+      Black Olive        6015     Ultradeep       LB                20    1          3      6     1
+                                                  PG          1     9           1    6      14        1
+                                                  BU          5     7     1          26     5     1
+                                                  TW                26    1          4      4     1
+    Torquoise Green      6016     Ultradeep       PG          9     4                45     20
+                                                  RO                4                       20
+                                                  YO          1     4                5      20
+                                                  TW          1     20               8      4
+      May Green          6017     Ultradeep       PG          1     28               9      12
+                                                  QV                14               2      6
+                                                  MY          7     30               39     22
+                                                  TW          1     24               8      24
+     Yellow Green        6018     Ultradeep       PG          1     4                5      20
+                                                  OY          6     28               34     12
+                                                  MY          2     26               14     2
+                                                  TW          1     4                5      20
+
+                                Vivid Yellow      PG          1      4               5      20
+
+
+
+      Pale Green         6021     Ultradeep       LB                10    1          1      20    1
+                                                  PG                26    1          4      4     1
+                                                  YO          2     14               12     6
+                                                  TW          8     13               42     1
+     Traffic Green       6024     Ultradeep       LB                5                       25
+                                                  PG          4     10               21     18
+                                                  OY          2     29               14     17
+                                                  MY          2     4                10     20
+                                                  TW          2     17               12     21
+      Fern Green         6025     Ultradeep       PG          1                      5
+                                                  QV          1     4                5      20
+                                                  MY          8     26               44     2
+                                                  TW          1                      5
+      Opal Green         6026     Ultradeep       LB                7     1     1    1      6     1   1
+                                                  PB                3     1     1           18    1   1
+                                                  MY          10    10               51     18
+                                                  TW           1    10    1          6      20    1
+      Pine Green         6028     Ultradeep       LB                29               5      17
+                                                  PB          2     14               12     6
+                                                  MY          6     28               34     12
+                                                  TW          1     25               8      29
+      Mint Green         6029     Ultradeep       PG          5     14               27     6
+                                                  OY          4     28               24     12
+                                                  MY          1     4                5      20
+                                                  TW                18               2      26
+     Signal Green        6032     Ultradeep       LB                6           1           31        1
+                                                  PG          4     12               21     28
+                                                  OY          2     21               13     9
+                                                  MY          2     9                11     13
+                                                  TW          2     16               12     16
+
+
+
+
+                                               Page 9 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                   Gallon                 Five Gallon
+      Color Name        RAL      Base Type    Colorants
+                                                              oz    32    64   128   oz      32    64 128
+    Pastel Turquoise     6034    Extrawhite       PB                15               2       11
+                                                  PG                23               3       19
+                                                  BU                16    1     1    2       19     1  1
+
+     Squirrel Grey       7000     Ultradeep      LB                 28    1     1    4      15    1   1
+                                                 PB                 8     1          1      10    1
+                                                 BU                 6                       31        1
+                                                 TW           7     30               39     22
+      Silver Grey        7001    Extrawhite      LB                 28               4      12
+                                                 YO                 2                       10
+
+      Olive Grey         7002     Ultradeep      LB                 22          1    3      15        1
+                                                 BU                 25               3      29
+                                                 YO           2     2     1          10     12    1
+                                                 TW           4     25    1     1    24           1   1
+      Moss Grey          7003     Ultradeep      LB                 31    1     1    4      30    1   1
+                                                 BU                 13          1    2      2         1
+                                                 YO           1     23    1     1    8      22    1   1
+                                                 TW           4     27          1    24     8         1
+      Sigmal Grey        7004    Extrawhite      LB                 21    1          3      11    1
+                                                 RO                 4                       20
+                                                 YO                 3           1           16        1
+      Mouse Grey         7005     Ultradeep      LB           1     8                6      8
+                                                 BU                 21          1    3      10        1
+                                                 YO                 16    1     1    2      19    1   1
+                                                 TW           5     18               27     26
+      Beige Grey         7006     Ultradeep      LB                 20               3      4
+                                                 BU           2     30    1     1    14     25    1   1
+                                                 YO                 21          1    3      10        1
+                                                 TW           3     24               18     24
+      Khaki Grey         7008     Ultradeep      LB                 24    1     1    3      27    1   1
+                                                 RO                 6     1     1    1      1     1   1
+                                                 YO           5     18          1    27     27        1
+                                                 TW           1     14          1    7      7         1
+      Green Grey         7009     Ultradeep      LB           1     25               8      29
+                                                 MY           2     28    1     1    14     15    1   1
+                                                 UO                 3     1     1           18    1   1
+                                                 TW           3     6     1          16           1
+
+    Tarpaulin Grey       7010     Ultradeep      LB           2                 1    10     1         1
+                                                 BU                 24          1    3      25        1
+                                                 YO           1     9     1          6      15    1
+                                                 TW           3     30               19     22
+       Iron Grey         7011     Ultradeep      LB           2     18    1     1    12     29    1   1
+                                                 YO                 18    1     1    2      29    1   1
+                                                 TW           4     26    1     1    24     5     1   1
+
+
+
+
+                                              Page 10 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                   Gallon                 Five Gallon
+     Color Name         RAL      Base Type    Colorants
+                                                              oz    32    64   128   oz      32    64 128
+      Basalt Grey        7012     Ultradeep      LB           2     10               11      18
+                                                 RO                  2                       10
+                                                 YO                 18               2       26
+                                                 TW           5      2               25      10
+     Brown Grey          7013     Ultradeep      LB                 26    1     1    4       5      1  1
+                                                 OY           2     11    1          11      25     1
+                                                 BU           2     31               14      27
+                                                 TW           1     26    1     1    9       5      1 11
+      Slate Grey         7015     Ultradeep      LB           3      3          1    15      16        1
+                                                 BU                  7          1    1       4         1
+                                                 RO                  5          1            26        1
+                                                 TW           4     16               22      16
+    Anthracite Grey      7016     Ultradeep      LB           4     24               23      24
+                                                 YO                  5          1            26        1
+                                                 TW           3      2    1     1    15      13     1  1
+      Black Grey         7021     Ultradeep      LB           5     13          1    27      2         1
+                                                 RO                  5          1            26        1
+                                                 YO                 21          1    3       10        1
+                                                 TW           1     24               8       24
+
+     Umbra Grey          7022     Ultradeep      LB           1     29    1     1    9      20    1   1
+                                                 BU           3     3           1    15     16        1
+                                                 YO                 25    1          3      31    1
+                                                 TW           2     5     1     1    10     28    1   1
+    Concrete Grey        7023     Ultradeep      LB                 17          1    2      22        1
+                                                 PG                 12               1      28
+                                                 BU           2     16    1     1    12     19    1   1
+                                                 TW           6     28               34     12
+    Graphite Grey        7024     Ultradeep      LB           3           1     1    15     3     1   1
+                                                 QR                 19          1    3                1
+                                                 OY                 31          1    4      28        1
+                                                 TW           3     12    1     1    16     31    1   1
+     Granite Grey        7026     Ultradeep      LB           2     23          1    13     20        1
+                                                 PG           1     7           1    6      4         1
+                                                 BU           1     19          1    8                1
+                                                 TW           2     14               12     6
+      Stone Grey         7030     Ultradeep      LB                 22    1          3      16    1
+                                                 BU           1     3     1          5      17    1
+                                                 MY                 18    1     1    2      29    1   1
+                                                 TW           8     15    1          42     13    1
+      Blue Grey          7031     Ultradeep      LB           1     29          1    9      18        1
+                                                 PG                 10    1     1    1      21    1   1
+                                                 YO                 6     1     1    1      1     1   1
+                                                 TW           5     17          1    27     22        1
+     Pebble Grey         7032    Extrawhite      LB                 8                1      8
+                                                 RO                       1                       5
+                                                 YO                 24               3      24
+
+
+
+
+                                              Page 11 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                   Gallon                 Five Gallon
+     Color Name         RAL      Base Type    Colorants
+                                                              oz    32    64   128   oz      32    64 128
+     Cement Grey         7033     Ultradeep      LB                 27    1     1    4       10     1  1
+                                                 PG                  5    1                  27     1
+                                                 YO           1     12          1    6       29        1
+                                                 TW           5     28    1          29      14     1
+     Yellow Grey         7034     Ultradeep      LB                 20          1    3       5         1
+                                                 BU           1      9    1          6       15     1
+                                                 MY           2     22    1          13      16     1
+                                                 TW           7     11    1     1    36      26     1  1
+
+      Light Grey         7035    Extrawhite      LB                 4           1           20        5
+                                                 YO                 3           1           15        5
+    Platinum Grey        7036     Ultradeep      LB                 19    1          3      1     1
+                                                 BU           1     4     1     1    5      23    1   1
+                                                 QV                 6     1          1            1
+                                                 TW           9     17    1     1    47     24    1   1
+      Dusty Grey         7037     Ultradeep      LB                 30          1    4      23        1
+                                                 BU                 20    1     1    3      7     1   1
+                                                 YO                 6     1     1    1      1     1   1
+                                                 TW           6     6           1    30     31        1
+      Agate Grey         7038    Extrawhite      LB                 10               1      18
+                                                 RO                       1                       5
+                                                 YO                 11    1          1      25    1
+     Quartz Grey         7039     Ultradeep      LB           1     4           1    5      21        1
+                                                 BU                 20    1          8      6     1
+                                                 YO                 19    1     1    3      2     1   1
+                                                 TW           4     19    1     1    23     2     1   1
+     Window Grey         7040    Extrawhite      LB                 18          3    2      29        3
+                                                 QV                 4                       20
+                                                 YO                 6           2           30        10
+
+
+    Traffic Grey A       7042    Extrawhite      LB                 28               4      12
+                                                 RO                 1     1     1           5     5   5
+                                                 YO                 10               1      18
+
+    Trafficc Grey B      7043     Ultradeep      LB           2     29    1     1    14     20    1   1
+                                                 RO                 2     1     1           13    1   1
+                                                 YO           1     1                5      7     1
+                                                 TW           3     30               19     22
+
+
+
+
+                                              Page 12 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                   Gallon              Five Gallon
+     Color Name         RAL      Base Type    Colorants
+                                                              oz    32    64   128   oz   32    64 128
+      Silk Grey          7044    Extrawhite      LB                  7          2    1    5      1
+                                                 RO                  1                    5
+                                                 YO                 13    1     4    2    8      1
+
+      Telegrey 1         7045    Extrawhite      LB                 29               4    17
+                                                 RO                 2                     10
+                                                 YO                 4                     20
+
+      Telegrey 2         7046    Extrawhite      LB           1     16               7    16
+                                                 RO                 2                     10
+                                                 YO                 9                1    13
+      Telegrey 4         7047    Extrawhite      LB                 3                     15
+                                                 BU                 4                     20
+                                                 QV                             2                  10
+
+     Green Brown         8000     Ultradeep      LB                 12    1     1    1    31   1    1
+                                                 RO                 5           1         26        1
+                                                 YO           6     4                33   15        1
+                                                 TW           1     10               1    18
+     Ochre Brown         8001     Ultradeep      BU           1     11    1     1    6    26   1    1
+                                                 RO                 8                1    8
+                                                 YO           6     22          1    33   15        1
+                                                 TW                 10               1    18
+     Signal Brown        8002     Ultradeep      LB                 31          1    4    28        1
+                                                 RO           2     13          1    12   2         1
+                                                 YO           2     24          1    13   25        1
+                                                 TW           1     27               9    7
+     Clay Brown          8003     Ultradeep      BU           3     7     1          16   5    1
+                                                 RO                 12               1    28
+                                                 YO           4     12    1          21   30   1
+    Copper Brown         8004     Ultradeep      LB                 9           1    1    14        1
+                                                 RO           3     2     1     1    15   13   1    1
+                                                 YO           3     8                16   8
+                                                 TW           1     12               6    28
+     Fawn Brown          8005     Ultradeep      BU           4     27    1          24   9    1
+                                                 RO                 10               1    18
+                                                 YO           2     26    1          14   4    1
+
+     Olive Brown         8008     Ultradeep      BU           4     18          1    22   27        1
+                                                 YO           4     1     1          20   7    1
+                                                 TW                 2           1         11        1
+      Nut Brown          8011     Ultradeep      LB           1     27          1    9    8         1
+                                                  RO          3      6    1          16        1
+                                                 YO           2     30          1    14   23        1
+
+     Red Brown           8012     Ultradeep      QR           2           1          10   2    1
+                                                 BU           5     16    1          27   18   1
+                                                 RO                 19          1    3              1
+                                                 TW                 15               2    11
+
+
+
+
+                                              Page 13 of 14
+RAL COLOR SYSTEM
+Base Definitions: Esmalte alquidalico de secado rápido estructureros
+Base Definitions:
+Extra White - 126.25 oz/gal                             Sherwin-Williams Company
+Vivid Yellow - 126.25 oz/gal                                          Protective & Marine
+Ultradeep - 120.25 oz/gal        Maxitoner   Colorants                        Octubre 2019
+                                                                   Gallon               Five Gallon
+     Color Name         RAL      Base Type    Colorants
+                                                              oz    32    64   128   oz    32    64 128
+     Sepia Brown         8014     Ultradeep      LB                 12          1    1     29        1
+                                                 BU           6                 1    30    1         1
+                                                 YO           1     16    1          7     18     1
+                                                 TW                 2     1     1          13     1  1
+    Chestnut Brown       8015     Ultradeep      QR           2     9     1     1    11    16     1  1
+                                                 BU           7     17    1     1    37    24     1  1
+                                                 UO           1     7                6     4
+                                                 TW                 14               2     6
+   Mahogany Brown        8016     Ultradeep      LB           3                      15
+                                                 RO           4     26    1     1    24    5    1   1
+                                                 TW                 5           1          26       1
+
+   Chocolate Brown       8017     Ultradeep       LB          2     26          1    14    3        1
+                                                  RO          2     27    1          14    9    1
+
+                                                 QV           1     30    1     1    9     25   1   1
+                                                 TW                 11          1    1     24       1
+
+
+
+
+                                              Page 14 of 14
+

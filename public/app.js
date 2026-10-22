@@ -1,22 +1,51 @@
 const $  = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[ch]);
+}
+
+function leerSesionGuardada() {
+  try {
+    const guardada = JSON.parse(localStorage.getItem("relma_sesion") || "null");
+    return guardada && typeof guardada === "object" && typeof guardada.usuario === "string"
+      ? guardada : null;
+  } catch (error) {
+    try { localStorage.removeItem("relma_sesion"); } catch (_) {}
+    return null;
+  }
+}
+
+function obtenerLogoSeguro(valor) {
+  const src = String(valor || "").trim();
+  if (/^data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,/i.test(src)) return src;
+  if (/^https?:\/\//i.test(src)) return src;
+  if (/^(?:\/(?!\/)|\.{1,2}\/)[^\s]*$/i.test(src)) return src;
+  return "";
+}
+
 const state = {
   clientes: [], tintas: [], productos: [], formulas: [],
-  sesion: JSON.parse(localStorage.getItem("relma_sesion") || "null"),
+  sesion: leerSesionGuardada(),
   config: {},
 };
 let sesionActual = null;
 let formulaDetalleActual = null;
 let archivoRestoreTemp = null;
 let modalRetorno = null;
+let clientesTagsSeleccionados = [];
 
-// ==================== UTILS ====================
+let toastTimer = null;
 function toast(msg, tipo) {
   const t = $("#toast");
-  t.textContent = msg;
+  if (!t) return;
+  t.textContent = String(msg ?? "");
   t.className = "toast " + (tipo || "");
-  setTimeout(() => t.classList.add("oculto"), 3200);
+  t.setAttribute("role", tipo === "error" ? "alert" : "status");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add("oculto"), 3200);
 }
 
 async function api(url, opts = {}) {
@@ -25,12 +54,28 @@ async function api(url, opts = {}) {
     headers["x-usuario"] = state.sesion.usuario;
     headers["x-rol"] = state.sesion.rol;
   }
-  const r = await fetch(url, { ...opts, headers });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({}));
-    throw new Error(err.error || "HTTP " + r.status);
+
+  let r;
+  try {
+    r = await fetch(url, { ...opts, headers });
+  } catch (error) {
+    throw new Error("No se pudo conectar con el servidor. Revisa la conexión e inténtalo de nuevo.");
   }
-  return r.json();
+
+  const texto = await r.text().catch(() => "");
+  let datos = null;
+  if (texto) {
+    try { datos = JSON.parse(texto); }
+    catch (_) { datos = null; }
+  }
+  if (!r.ok) {
+    const mensaje = datos && typeof datos.error === "string" ? datos.error : `Error HTTP ${r.status}`;
+    throw new Error(mensaje);
+  }
+  if (texto && datos === null) {
+    throw new Error("El servidor respondió con un formato inesperado.");
+  }
+  return datos;
 }
 
 function confirmar(titulo, mensaje, palabraClave) {
@@ -81,7 +126,6 @@ function parsearCantidad(texto) {
   return total128;
 }
 
-// ==================== VALIDACIÓN Y NORMALIZACIÓN DE CANTIDADES ====================
 const DENOMINADORES_VALIDOS = [32, 64, 128, 256, 512];
 
 function validarYNormalizarCantidad(texto, maquina) {
@@ -97,7 +141,6 @@ function validarYNormalizarCantidad(texto, maquina) {
   for (const parte of partes) {
     let m;
 
-    // ml
     m = parte.match(/^(\d+(?:\.\d+)?)\s*ml$/);
     if (m) {
       const v = parseFloat(m[1]);
@@ -106,7 +149,6 @@ function validarYNormalizarCantidad(texto, maquina) {
       continue;
     }
 
-    // hoz / onzas / oz / h
     m = parte.match(/^(\d+(?:\.\d+)?)\s*(hoz|h|onzas?|oz)$/);
     if (m) {
       const v = parseFloat(m[1]);
@@ -115,7 +157,6 @@ function validarYNormalizarCantidad(texto, maquina) {
       continue;
     }
 
-    // fracción X/Y
     m = parte.match(/^(\d+)\s*\/\s*(\d+)$/);
     if (m) {
       const num = parseInt(m[1]);
@@ -129,7 +170,6 @@ function validarYNormalizarCantidad(texto, maquina) {
       continue;
     }
 
-    // decimal suelto (interpretado como onzas)
     m = parte.match(/^(\d+(?:\.\d+)?)$/);
     if (m) {
       const v = parseFloat(m[1]);
@@ -182,8 +222,10 @@ function formatearML(total128) {
 
 function csvEscape(v) {
   if (v === null || v === undefined) return "";
-  const s = String(v).replace(/"/g, '""');
-  return /[",;\n]/.test(s) ? '"' + s + '"' : s;
+  let valor = String(v);
+  if (/^[\s]*[=+@]/.test(valor) || /^[\s]*-[A-Za-z]/.test(valor)) valor = "'" + valor;
+  const s = valor.replace(/"/g, '""');
+  return /[",;\n\r]/.test(s) ? '"' + s + '"' : s;
 }
 
 function descargarCSV(nombreArchivo, filas) {
@@ -191,11 +233,13 @@ function descargarCSV(nombreArchivo, filas) {
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = nombreArchivo; a.click();
-  URL.revokeObjectURL(url);
+  a.href = url; a.download = nombreArchivo;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// ==================== TEMA ====================
 function aplicarTema(tema) {
   document.documentElement.setAttribute("data-tema", tema);
   $("#btnTema").textContent = tema === "claro" ? "☀️" : "🌙";
@@ -207,7 +251,6 @@ $("#btnTema").onclick = () => {
 };
 aplicarTema(localStorage.getItem("relma_tema") || "oscuro");
 
-// ==================== LOGIN ====================
 function verificarAcceso() {
   if (state.sesion) {
     $("#loginScreen").classList.add("oculto");
@@ -252,7 +295,6 @@ document.addEventListener("click", () => $("#userDropdown").classList.add("ocult
 $("#userDropdown").onclick = e => e.stopPropagation();
 $("#btnLogout").onclick = () => { localStorage.removeItem("relma_sesion"); location.reload(); };
 
-// ==================== TABS ====================
 $$("nav button").forEach(b => b.onclick = () => {
   $$("nav button").forEach(x => x.classList.remove("activo"));
   $$(".tab").forEach(x => x.classList.remove("activo"));
@@ -272,7 +314,6 @@ $$(".sub-tabs button").forEach(b => b.onclick = () => {
   if (b.dataset.sub === "usuarios") cargarUsuarios();
 });
 
-// ==================== CARGA INICIAL ====================
 async function cargarTodo() {
   try {
     state.clientes  = await api("/api/clientes");
@@ -294,58 +335,75 @@ async function cargarTodo() {
 }
 
 function aplicarConfig(cfg) {
-  if (cfg.empresa_logo) {
-    $("#headerLogo").innerHTML = `<img src="${cfg.empresa_logo}" style="height:32px;vertical-align:middle"> ${cfg.empresa_nombre || "RELMA"}`;
-    $("#loginLogo").innerHTML = `<img src="${cfg.empresa_logo}" style="height:60px">`;
-  } else if (cfg.empresa_nombre) {
-    $("#headerLogo").textContent = "🎨 " + cfg.empresa_nombre;
+  const nombre = cfg.empresa_nombre || "RELMA";
+  const logo = obtenerLogoSeguro(cfg.empresa_logo);
+  if (logo) {
+    $("#headerLogo").innerHTML = `<img src="${escapeHTML(logo)}" alt="" style="height:32px;vertical-align:middle"> ${escapeHTML(nombre)}`;
+    $("#loginLogo").innerHTML = `<img src="${escapeHTML(logo)}" alt="Logo de ${escapeHTML(nombre)}" style="height:60px;max-width:100%;object-fit:contain">`;
+  } else {
+    $("#headerLogo").textContent = "🎨 " + nombre;
+    $("#loginLogo").textContent = "🎨 " + nombre;
   }
-  document.title = (cfg.empresa_nombre || "RELMA") + " — Sistema de Fórmulas";
+  document.title = nombre + " — Sistema de Fórmulas";
 }
 
-// ==================== BÚSQUEDA GLOBAL ====================
 let timeoutBusqueda;
+let secuenciaBusqueda = 0;
 $("#buscarGlobal").oninput = (e) => {
   clearTimeout(timeoutBusqueda);
   const q = e.target.value.trim();
+  const secuencia = ++secuenciaBusqueda;
   if (q.length < 2) return $("#resultadosGlobal").classList.add("oculto");
   timeoutBusqueda = setTimeout(async () => {
-    const r = await api("/api/buscar?q=" + encodeURIComponent(q));
     const cont = $("#resultadosGlobal");
-    let html = "";
-    if (r.clientes.length) {
-      html += '<div class="grupo">Clientes</div>';
-      r.clientes.forEach(c => html += `<div class="item" data-tipo="cliente" data-id="${c.id}">👥 ${c.nombre}</div>`);
+    try {
+      const r = await api("/api/buscar?q=" + encodeURIComponent(q));
+      if (secuencia !== secuenciaBusqueda || q !== $("#buscarGlobal").value.trim()) return;
+      let html = "";
+      if ((r.clientes || []).length) {
+        html += '<div class="grupo">Clientes</div>';
+        r.clientes.forEach(c => html += `<div class="item" data-tipo="cliente" data-id="${escapeHTML(c.id)}">👥 ${escapeHTML(c.nombre)}</div>`);
+      }
+      if ((r.formulas || []).length) {
+        html += '<div class="grupo">Fórmulas</div>';
+        r.formulas.forEach(f => {
+          const detalles = [f.cliente_nombre, f.producto || 'Sin producto', f.base || 'Sin base',
+            f.capacidad_madre ? f.capacidad_madre + ' LT' : ''].filter(Boolean).map(escapeHTML).join(' · ');
+          html += `<div class="item" data-tipo="formula" data-id="${escapeHTML(f.id)}" style="display:flex; flex-direction:column; align-items:flex-start; padding:8px; border-bottom:1px solid var(--borde);">
+            <div style="font-weight:bold;">🧪 ${escapeHTML(f.color)}</div>
+            <div style="font-size:0.75rem; color:var(--txt-suave); margin-top:2px;">${detalles}</div>
+          </div>`;
+        });
+      }
+      if ((r.productos || []).length) {
+        html += '<div class="grupo">Productos</div>';
+        r.productos.forEach(p => html += `<div class="item">📦 ${escapeHTML(p.nombre)} <small>${escapeHTML(p.categoria)}</small></div>`);
+      }
+      cont.innerHTML = html || '<div class="item">Sin resultados</div>';
+      cont.classList.remove("oculto");
+      cont.querySelectorAll(".item[data-tipo]").forEach(el => {
+        el.onclick = () => {
+          cont.classList.add("oculto");
+          $("#buscarGlobal").value = "";
+          if (el.dataset.tipo === "cliente") {
+            const c = state.clientes.find(x => x.id == el.dataset.id);
+            if (c) verCliente(c);
+          } else if (el.dataset.tipo === "formula") {
+            verFormula(Number(el.dataset.id));
+          }
+        };
+      });
+    } catch (error) {
+      if (secuencia !== secuenciaBusqueda) return;
+      cont.textContent = "No se pudo realizar la búsqueda. " + error.message;
+      cont.classList.remove("oculto");
     }
-    if (r.formulas.length) {
-      html += '<div class="grupo">Fórmulas</div>';
-      r.formulas.forEach(f => html += `<div class="item" data-tipo="formula" data-id="${f.id}">🧪 ${f.color} <small>${f.cliente_nombre}</small></div>`);
-    }
-    if (r.productos.length) {
-      html += '<div class="grupo">Productos</div>';
-      r.productos.forEach(p => html += `<div class="item">📦 ${p.nombre} <small>${p.categoria}</small></div>`);
-    }
-    cont.innerHTML = html || '<div class="item">Sin resultados</div>';
-    cont.classList.remove("oculto");
-    cont.querySelectorAll(".item[data-tipo]").forEach(el => {
-      el.onclick = () => {
-        cont.classList.add("oculto");
-        $("#buscarGlobal").value = "";
-        if (el.dataset.tipo === "cliente") {
-          const c = state.clientes.find(x => x.id == el.dataset.id);
-          if (c) verCliente(c);
-        } else if (el.dataset.tipo === "formula") {
-          verFormula(Number(el.dataset.id));
-        }
-      };
-    });
   }, 250);
 };
 document.addEventListener("click", e => {
   if (!e.target.closest(".buscador-global")) $("#resultadosGlobal").classList.add("oculto");
 });
 
-// ==================== SISTEMA DE MODALES CON RETORNO ====================
 function capturarCamposModal(modalId) {
   const campos = {};
   $$(`#${modalId} input, #${modalId} select, #${modalId} textarea`).forEach(el => {
@@ -384,19 +442,17 @@ async function cerrarModalSecundario(modalId, valorCreado, campoSeleccionar) {
 
   $("#" + modalRetorno.modal).classList.remove("oculto");
 
-  // Reconstruir dropdowns PRIMERO
   if (modalRetorno.modal === "modalNuevaSesion") {
-    $("#nsCliente").innerHTML = state.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join("");
+    $("#nsCliente").innerHTML = state.clientes.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`).join("");
     $("#nsProducto").innerHTML = '<option value="">— Selecciona —</option>' +
-      state.productos.map(p => `<option value="${p.nombre}">${p.nombre} (${p.categoria})</option>`).join("");
+      state.productos.map(p => `<option value="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)} (${escapeHTML(p.categoria)})</option>`).join("");
   }
   if (modalRetorno.modal === "modalFormula") {
-    $("#nfCliente").innerHTML = state.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join("");
+    $("#nfClienteSelect").innerHTML = state.clientes.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`).join("");
     $("#nfProducto").innerHTML = '<option value="">— Selecciona —</option>' +
-      state.productos.map(p => `<option value="${p.nombre}">${p.nombre} (${p.categoria})</option>`).join("");
+      state.productos.map(p => `<option value="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)} (${escapeHTML(p.categoria)})</option>`).join("");
   }
 
-  // AHORA restaurar valores
   restaurarCamposModal(modalRetorno.campos);
 
   if (valorCreado && campoSeleccionar) {
@@ -406,7 +462,6 @@ async function cerrarModalSecundario(modalId, valorCreado, campoSeleccionar) {
   modalRetorno = null;
 }
 
-// ==================== CLIENTES ====================
 function pintarClientes() {
   const q = ($("#buscarCliente").value || "").toUpperCase();
   const soloActivos = $("#soloActivos").checked;
@@ -424,17 +479,17 @@ function pintarClientes() {
         <button class="editar" title="Editar">✏️</button>
         <button class="borrar" title="Eliminar">🗑</button>
       </div>
-      <h3>${c.nombre}</h3>
-      <div class="sub">${c.contacto || ""}</div>
-      <div class="sub">${c.telefono || ""}</div>
-      <div class="badge ${c.activo ? "" : "inactivo"}">${c.num_formulas} fórmula(s)</div>
-      <div class="sub" style="font-size:0.75rem;margin-top:6px">📅 ${formatearFecha(c.fecha_creacion)}</div>`;
+      <h3>${escapeHTML(c.nombre)}</h3>
+      <div class="sub">${escapeHTML(c.contacto || "")}</div>
+      <div class="sub">${escapeHTML(c.telefono || "")}</div>
+      <div class="badge ${c.activo ? "" : "inactivo"}">${escapeHTML(c.num_formulas)} fórmula(s)</div>
+      <div class="sub" style="font-size:0.75rem;margin-top:6px">📅 ${escapeHTML(formatearFecha(c.fecha_creacion))}</div>`;
     div.onclick = (e) => { if (!e.target.closest("button")) verCliente(c); };
     div.querySelector(".editar").onclick = (e) => { e.stopPropagation(); abrirCliente(c); };
     div.querySelector(".borrar").onclick = async (e) => {
       e.stopPropagation();
       const ok = await confirmar("Eliminar cliente",
-        `<p>¿Eliminar <b>${c.nombre}</b>?</p><p>Se borrarán también sus ${c.num_formulas} fórmula(s) e historial.</p>`);
+        `<p>¿Eliminar <b>${escapeHTML(c.nombre)}</b>?</p><p>Se borrarán también sus ${escapeHTML(c.num_formulas)} fórmula(s) e historial.</p>`);
       if (ok) {
         try {
           await api("/api/clientes/" + c.id, { method: "DELETE" });
@@ -510,7 +565,6 @@ $("#btnGuardarCliente").onclick = async () => {
   } catch (e) { toast("Error: " + e.message, "error"); }
 };
 
-// ==================== PRODUCTO ====================
 function abrirProductoNuevo(modalPadre, dropdownPadre) {
   abrirModalConRetorno("modalProducto", modalPadre, dropdownPadre);
   ["npCodigo","npNombre"].forEach(id => $("#"+id).value = "");
@@ -540,11 +594,9 @@ $$("#modalProducto .cancelar").forEach(b => b.onclick = () => {
   else $("#modalProducto").classList.add("oculto");
 });
 
-// ==================== TINTA AL VUELO ====================
 function abrirTintaNueva(modalPadre, dropdownPadre) {
   abrirModalConRetorno("modalTinta", modalPadre, dropdownPadre);
   ["ntCodigo","ntNombre"].forEach(id => $("#"+id).value = "");
-  // Sugerir máquina según el padre
   if (modalPadre === "modalFormula") {
     $("#ntMaquina").value = $("#nfMaquina").value;
     $("#ntCategoria").value = $("#nfMaquina").value === "64" ? "ARQUITECTONICA" : "INDUSTRIAL";
@@ -571,13 +623,11 @@ $("#btnGuardarTinta").onclick = async () => {
       const padre = modalRetorno.modal;
       await cerrarModalSecundario("modalTinta", nombre, null);
 
-      // Si es el modal de fórmula, agregar una nueva fila con la tinta preseleccionada
       if (padre === "modalFormula") {
         agregarFilaTinta(nombre, "");
       }
     } else {
       $("#modalTinta").classList.add("oculto");
-      // Si estamos en el igualador, recargar tintas y seleccionar la nueva
       if (sesionActual) {
         llenarTintasMezclador(sesionActual.producto);
         setTimeout(() => { $("#mezcTinta").value = nombre; }, 50);
@@ -591,7 +641,6 @@ $$("#modalTinta .cancelar").forEach(b => b.onclick = () => {
   else $("#modalTinta").classList.add("oculto");
 });
 
-// ==================== FÓRMULAS ====================
 function pintarFormulas() {
   const q = ($("#buscarFormula").value || "").toUpperCase();
   const clienteId = $("#filtroCliente").value;
@@ -599,12 +648,17 @@ function pintarFormulas() {
   const soloFav = $("#soloFavoritos").checked;
   const cont = $("#listaFormulas");
   cont.innerHTML = "";
+  
+  const cliFiltro = clienteId ? state.clientes.find(c => c.id == clienteId) : null;
+  const nombreFiltro = cliFiltro ? cliFiltro.nombre : "";
+
   const lista = state.formulas.filter(f =>
-    (!clienteId || f.cliente_id == clienteId) &&
+    (!clienteId || (f.cliente_nombre && f.cliente_nombre.includes(nombreFiltro))) &&
     (!producto || f.producto === producto) &&
     (!soloFav || f.favorito) &&
     (!q || (f.color + " " + (f.codigo || "")).toUpperCase().includes(q))
   );
+  
   if (!lista.length) { cont.innerHTML = '<div class="card">Sin fórmulas. Usa "+ Nueva Fórmula".</div>'; return; }
   lista.forEach(f => {
     const div = document.createElement("div");
@@ -616,11 +670,11 @@ function pintarFormulas() {
         <button class="duplicar" title="Duplicar">📋</button>
         <button class="borrar" title="Eliminar">🗑</button>
       </div>
-      <h3>${f.color}</h3>
-      <div class="sub">${f.cliente_nombre}</div>
-      <div class="sub">${f.producto || ""} · ${f.base || ""}</div>
-      <div class="badge">${f.capacidad_madre} LT · ${f.maquina === 64 ? "Arq." : "Ind."}</div>
-      <div class="sub" style="font-size:0.75rem;margin-top:6px">📅 ${formatearFecha(f.fecha_creacion)}</div>`;
+      <h3>${escapeHTML(f.color)}</h3>
+      <div class="sub">${escapeHTML(f.cliente_nombre)}</div>
+      <div class="sub">${escapeHTML(f.producto || "")} · ${escapeHTML(f.base || "")}</div>
+      <div class="badge">${escapeHTML(f.capacidad_madre)} LT · ${f.maquina === 64 ? "Arq." : "Ind."}</div>
+      <div class="sub" style="font-size:0.75rem;margin-top:6px">📅 ${escapeHTML(formatearFecha(f.fecha_creacion))}</div>`;
     div.onclick = (e) => { if (!e.target.closest("button")) verFormula(f.id); };
     div.querySelector(".fav").onclick = async (e) => {
       e.stopPropagation();
@@ -641,7 +695,7 @@ function pintarFormulas() {
     };
     div.querySelector(".borrar").onclick = async (e) => {
       e.stopPropagation();
-      const ok = await confirmar("Eliminar fórmula", `<p>¿Eliminar <b>${f.color}</b> de ${f.cliente_nombre}?</p>`);
+      const ok = await confirmar("Eliminar fórmula", `<p>¿Eliminar <b>${escapeHTML(f.color)}</b> de ${escapeHTML(f.cliente_nombre)}?</p>`);
       if (ok) {
         try {
           await api("/api/formulas/" + f.id, { method: "DELETE" });
@@ -663,30 +717,72 @@ $("#btnNuevaFormula").onclick = () => abrirFormula(null);
 
 function abrirFormula(f) {
   $("#frmTitulo").textContent = f ? "Editar Fórmula" : "Nueva Fórmula";
-  $("#frmId").value = f ? f.id : "";
-  $("#nfCliente").innerHTML = state.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join("");
+  $("#frmId").value = (f && f.id) ? f.id : "";
+  
+  $("#nfClienteSelect").innerHTML = state.clientes.map(c => `<option value="${c.id}">${escapeHTML(c.nombre)}</option>`).join("");
+  
+  if (f && f.id) {
+    const idsAGuardar = f.clientes_ids ? String(f.clientes_ids).split(',') : [String(f.cliente_id)];
+    clientesTagsSeleccionados = idsAGuardar.map(Number);
+  } else {
+    const cliFiltro = $("#filtroCliente").value;
+    clientesTagsSeleccionados = cliFiltro ? [Number(cliFiltro)] : [];
+  }
+  
+  actualizarTagsClientes();
+
   $("#nfProducto").innerHTML = '<option value="">— Selecciona —</option>' +
-    state.productos.map(p => `<option value="${p.nombre}">${p.nombre} (${p.categoria})</option>`).join("");
+    state.productos.map(p => `<option value="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)} (${escapeHTML(p.categoria)})</option>`).join("");
+    
   $("#nfColor").value = f ? f.color : "";
   $("#nfCodigo").value = f ? f.codigo || "" : "";
   $("#nfBase").value = f ? f.base || "" : "";
   $("#nfCapacidad").value = f ? f.capacidad_madre : 1;
   $("#nfMaquina").value = f ? f.maquina : 32;
   $("#nfNotas").value = f ? f.notas || "" : "";
+  
   if (f) {
-    $("#nfCliente").value = f.cliente_id;
     $("#nfProducto").value = f.producto || "";
   } else {
-    const cliFiltro = $("#filtroCliente").value;
-    if (cliFiltro) $("#nfCliente").value = cliFiltro;
     const prodFiltro = $("#filtroProducto").value;
     if (prodFiltro) $("#nfProducto").value = prodFiltro;
   }
+  
   $("#nfTintas").innerHTML = "";
-  if (f && f.tintas && f.tintas.length) f.tintas.forEach(t => agregarFilaTinta(t.tinta, t.cantidad_texto));
-  else agregarFilaTinta();
+  if (f && f.tintas && f.tintas.length) {
+    f.tintas.forEach(t => agregarFilaTinta(t.tinta, t.cantidad_texto));
+  } else {
+    agregarFilaTinta();
+  }
+  
   $("#modalFormula").classList.remove("oculto");
 }
+
+function actualizarTagsClientes() {
+  $("#nfClientesTags").innerHTML = clientesTagsSeleccionados.map(id => {
+    const c = state.clientes.find(x => x.id === id);
+    if (!c) return "";
+    return `
+      <span style="background: #0ea5e9; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
+        ${escapeHTML(c.nombre)} 
+        <button type="button" onclick="quitarClienteTag(${id})" style="background:transparent; border:none; color:white; cursor:pointer; font-size: 1.2rem; line-height: 1; padding: 0;">&times;</button>
+      </span>`;
+  }).join("");
+}
+
+window.quitarClienteTag = (id) => {
+  clientesTagsSeleccionados = clientesTagsSeleccionados.filter(cid => cid !== id);
+  actualizarTagsClientes();
+};
+
+document.getElementById("btnAgregarClienteTag").onclick = () => {
+  const select = $("#nfClienteSelect");
+  const id = Number(select.value);
+  if (id && !clientesTagsSeleccionados.includes(id)) {
+    clientesTagsSeleccionados.push(id);
+    actualizarTagsClientes();
+  }
+};
 
 function agregarFilaTinta(tinta, cantidad) {
   const maquina = Number($("#nfMaquina").value);
@@ -697,16 +793,15 @@ function agregarFilaTinta(tinta, cantidad) {
   div.innerHTML = `
     <select class="tinta-select">
       <option value="">— Tinta —</option>
-      ${tintasFiltradas.map(t => `<option value="${t.nombre}" data-cat="${t.categoria}">${t.nombre} (${t.categoria})</option>`).join("")}
+      ${tintasFiltradas.map(t => `<option value="${escapeHTML(t.nombre)}" data-cat="${escapeHTML(t.categoria)}">${escapeHTML(t.nombre)} (${escapeHTML(t.categoria)})</option>`).join("")}
     </select>
-      <input type="text" class="tinta-cant" placeholder="Ej: 24 hoz + 10/32" value="${cantidad || ""}">
+      <input type="text" class="tinta-cant" placeholder="Ej: 24 hoz + 10/32" value="${escapeHTML(cantidad || "")}">
     <span class="feedback-tinta"></span>
     <button type="button" class="quitar">✕</button>`;
   if (tinta) div.querySelector(".tinta-select").value = tinta;
   div.querySelector(".quitar").onclick = () => div.remove();
   cont.appendChild(div);
 
-  // Feedback en vivo para este input
   const input = div.querySelector(".tinta-cant");
   const fb = div.querySelector(".feedback-tinta");
   input.addEventListener("input", () => {
@@ -739,7 +834,6 @@ function agregarFilaTinta(tinta, cantidad) {
   });
 }
 
-// Refrescar tintas al cambiar la máquina
 document.addEventListener("change", (e) => {
   if (e.target && e.target.id === "nfMaquina") {
     const maquina = Number(e.target.value);
@@ -747,7 +841,7 @@ document.addEventListener("change", (e) => {
     $$("#nfTintas .tinta-select").forEach(sel => {
       const valorActual = sel.value;
       sel.innerHTML = '<option value="">— Tinta —</option>' +
-        tintasFiltradas.map(t => `<option value="${t.nombre}" data-cat="${t.categoria}">${t.nombre} (${t.categoria})</option>`).join("");
+        tintasFiltradas.map(t => `<option value="${escapeHTML(t.nombre)}" data-cat="${escapeHTML(t.categoria)}">${escapeHTML(t.nombre)} (${escapeHTML(t.categoria)})</option>`).join("");
       if (tintasFiltradas.find(t => t.nombre === valorActual)) sel.value = valorActual;
     });
     toast("Tintas filtradas por máquina " + maquina, "aviso");
@@ -759,7 +853,7 @@ $("#nfNuevaTinta").onclick = () => abrirTintaNueva("modalFormula", null);
 
 $$("#modalFormula .cancelar").forEach(b => b.onclick = () => $("#modalFormula").classList.add("oculto"));
 $("#nfNuevoCliente").onclick = () => {
-  abrirModalConRetorno("modalCliente", "modalFormula", "nfCliente");
+  abrirModalConRetorno("modalCliente", "modalFormula", "nfClienteSelect");
   abrirCliente(null);
 };
 $("#nfNuevoProducto").onclick = () => abrirProductoNuevo("modalFormula", "nfProducto");
@@ -768,6 +862,7 @@ $("#btnGuardarFormula").onclick = async () => {
   const tintas = [];
   const maq = Number($("#nfMaquina").value);
   let huboError = false;
+  
   $$("#nfTintas .tinta-fila").forEach(fila => {
     const tinta = fila.querySelector(".tinta-select").value;
     const cant = fila.querySelector(".tinta-cant").value.trim();
@@ -782,11 +877,19 @@ $("#btnGuardarFormula").onclick = async () => {
       tintas.push({ tinta, cantidad_texto: r.normalizado, categoria: opt.dataset.cat });
     }
   });
+  
   if (huboError) return;
   if (!tintas.length) return toast("Agrega al menos una tinta", "error");
+  
   const id = $("#frmId").value;
+  
+  if (clientesTagsSeleccionados.length === 0) {
+    return toast("Selecciona al menos un cliente", "error");
+  }
+
   const datos = {
-    cliente_id: Number($("#nfCliente").value),
+    cliente_id: clientesTagsSeleccionados[0] || null, 
+    clientes_ids: clientesTagsSeleccionados, 
     color: $("#nfColor").value.trim(),
     codigo: $("#nfCodigo").value.trim(),
     producto: $("#nfProducto").value,
@@ -796,7 +899,9 @@ $("#btnGuardarFormula").onclick = async () => {
     notas: $("#nfNotas").value.trim(),
     tintas,
   };
-  if (!datos.color) return toast("Pon el color", "error");
+  
+  if (!datos.color) return toast("Pon el nombre del color", "error");
+  
   try {
     if (id) {
       await api("/api/formulas/" + id, { method: "PUT", body: JSON.stringify(datos) });
@@ -807,13 +912,18 @@ $("#btnGuardarFormula").onclick = async () => {
     }
     $("#modalFormula").classList.add("oculto");
     await cargarTodo();
-  } catch (e) { toast("Error: " + e.message, "error"); }
+  } catch (e) { 
+    toast("Error: " + e.message, "error"); 
+  }
 };
 
-// ==================== VER FÓRMULA ====================
 async function verFormula(id) {
   const f = await api("/api/formulas/" + id);
   formulaDetalleActual = f;
+  conversionTemporal = null;
+  $("#detBtnGuardarConvertida").classList.add("oculto");
+  $("#detBtnIgualarConvertida").classList.add("oculto");
+  $("#detConvTamano").value = "";
   $("#detTitulo").textContent = f.color + " — " + f.cliente_nombre;
   pintarDetalleFormula();
   $("#modalDetalle").classList.remove("oculto");
@@ -821,8 +931,6 @@ async function verFormula(id) {
 
 function formatearFecha(fechaSQL) {
   if (!fechaSQL) return "";
-  // Viene del backend como "2026-10-15 14:32:00" (UTC)
-  // La interpretamos como UTC y la pasamos a local
   const d = new Date(fechaSQL.replace(" ", "T") + "Z");
   if (isNaN(d.getTime())) return fechaSQL;
   const pad = n => String(n).padStart(2, "0");
@@ -840,21 +948,21 @@ function pintarDetalleFormula() {
       if (unidad === "ML") valor = formatearML(total128);
       if (unidad === "AMBAS") valor = t.cantidad_texto + "   (" + formatearML(total128) + ")";
     }
-    return `<div class="tinta-fila"><div style="flex:1"><b>${t.tinta}</b></div><div style="flex:1">${valor}</div></div>`;
+    return `<div class="tinta-fila"><div style="flex:1"><b>${escapeHTML(t.tinta)}</b></div><div style="flex:1">${escapeHTML(valor)}</div></div>`;
   }).join("");
   $("#detContenido").innerHTML = `
-    <p><b>Cliente:</b> ${f.cliente_nombre}</p>
-    <p><b>Producto:</b> ${f.producto || "-"}</p>
-    <p><b>Base:</b> ${f.base || "-"}</p>
-    <p><b>Capacidad:</b> ${f.capacidad_madre} LT · <b>Máquina:</b> ${f.maquina === 64 ? "Arquitectónica" : "Industrial"}</p>
-    ${f.codigo ? `<p><b>Código:</b> ${f.codigo}</p>` : ""}
+    <p><b>Cliente(s):</b> ${escapeHTML(f.cliente_nombre)}</p>
+    <p><b>Producto:</b> ${escapeHTML(f.producto || "-")}</p>
+    <p><b>Base:</b> ${escapeHTML(f.base || "-")}</p>
+    <p><b>Capacidad:</b> ${escapeHTML(f.capacidad_madre)} LT · <b>Máquina:</b> ${f.maquina === 64 ? "Arquitectónica" : "Industrial"}</p>
+    ${f.codigo ? `<p><b>Código:</b> ${escapeHTML(f.codigo)}</p>` : ""}
     <p style="color:var(--txt-suave);font-size:0.85rem;margin-top:6px">
-      📅 Creada: ${formatearFecha(f.fecha_creacion)}
+      📅 Creada: ${escapeHTML(formatearFecha(f.fecha_creacion))}
       ${f.ultima_actualizacion && f.ultima_actualizacion !== f.fecha_creacion
-        ? ` · ✏️ Editada: ${formatearFecha(f.ultima_actualizacion)}` : ""}
+        ? ` · ✏️ Editada: ${escapeHTML(formatearFecha(f.ultima_actualizacion))}` : ""}
     </p>
     <h4 style="margin-top:10px">Tintas:</h4>${tintas}
-    ${f.notas ? `<p style="margin-top:10px"><b>Notas:</b> ${f.notas}</p>` : ""}`;
+    ${f.notas ? `<p style="margin-top:10px"><b>Notas:</b> ${escapeHTML(f.notas)}</p>` : ""}`;
   $("#detConvSalida").textContent = "";
   cargarHistorialFormula(f.id);
 }
@@ -863,7 +971,7 @@ async function cargarHistorialFormula(formulaId) {
   try {
     const items = await api("/api/preparaciones/formula/" + formulaId);
     $("#detHistorial").innerHTML = items.length
-      ? items.map(i => `<div class="log-fila"><span class="fecha">${i.fecha}</span> · <b>${i.estado}</b> · ${i.preparo || "-"}</div>`).join("")
+      ? items.map(i => `<div class="log-fila"><span class="fecha">${escapeHTML(i.fecha)}</span> · <b>${escapeHTML(i.estado)}</b> · ${escapeHTML(i.preparo || "-")}</div>`).join("")
       : "<p class='ayuda'>Aún no se ha preparado esta fórmula.</p>";
   } catch (e) { $("#detHistorial").innerHTML = "<p class='ayuda'>Error.</p>"; }
 }
@@ -908,10 +1016,13 @@ $("#detBtnGuardarConvertida").onclick = () => {
   $("#modalDetalle").classList.add("oculto");
   $("#frmTitulo").textContent = "Guardar versión convertida (" + conv.destino + " LT)";
   $("#frmId").value = "";
-  $("#nfCliente").innerHTML = state.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join("");
+  $("#nfClienteSelect").innerHTML = state.clientes.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`).join("");
   $("#nfProducto").innerHTML = '<option value="">— Selecciona —</option>' +
-    state.productos.map(p => `<option value="${p.nombre}">${p.nombre} (${p.categoria})</option>`).join("");
-  $("#nfCliente").value = f.cliente_id;
+    state.productos.map(p => `<option value="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)} (${escapeHTML(p.categoria)})</option>`).join("");
+  
+  clientesTagsSeleccionados = f.clientes_ids ? String(f.clientes_ids).split(',').map(Number) : [f.cliente_id];
+  actualizarTagsClientes();
+  
   $("#nfProducto").value = f.producto || "";
   $("#nfColor").value = f.color;
   $("#nfCodigo").value = f.codigo || "";
@@ -930,20 +1041,19 @@ $("#detBtnPreparar").onclick = () => {
   abrirPreparar(formulaDetalleActual);
 };
 
-// ==================== PREPARAR ====================
 function abrirPreparar(f) {
   const tintas = f.tintas.map(t => {
     const total128 = parsearCantidad(t.cantidad_texto);
     const ml = total128 !== null ? formatearML(total128) : "";
     return `<div class="preparar-tinta">
-      <div class="nombre">${t.tinta}</div>
-      <div class="cantidad">${t.cantidad_texto}</div>
+      <div class="nombre">${escapeHTML(t.tinta)}</div>
+      <div class="cantidad">${escapeHTML(t.cantidad_texto)}</div>
       ${ml ? `<div style="color:var(--txt-suave);margin-top:4px">${ml}</div>` : ""}
     </div>`;
   }).join("");
   $("#prepararContenido").innerHTML = `
-    <h1>${f.color}</h1>
-    <div class="info">${f.cliente_nombre} · ${f.producto || ""} · Base: ${f.base || "-"} · <b>${f.capacidad_madre} LT</b></div>
+    <h1>${escapeHTML(f.color)}</h1>
+    <div class="info">${escapeHTML(f.cliente_nombre)} · ${escapeHTML(f.producto || "")} · Base: ${escapeHTML(f.base || "-")} · <b>${escapeHTML(f.capacidad_madre)} LT</b></div>
     ${tintas}`;
   $("#modalPreparar").classList.remove("oculto");
 }
@@ -952,20 +1062,19 @@ $("#prepCerrar").onclick = () => $("#modalPreparar").classList.add("oculto");
 $("#prepImprimir").onclick = () => {
   if (!formulaDetalleActual) return;
   const f = formulaDetalleActual;
-  const tintas = f.tintas.map(t => `<tr><td style="padding:8px;border-bottom:1px solid #ddd">${t.tinta}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-weight:bold">${t.cantidad_texto}</td></tr>`).join("");
+  const tintas = f.tintas.map(t => `<tr><td style="padding:8px;border-bottom:1px solid #ddd">${escapeHTML(t.tinta)}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-weight:bold">${escapeHTML(t.cantidad_texto)}</td></tr>`).join("");
   const win = window.open("", "_blank");
-  win.document.write(`<html><head><title>${f.color}</title>
+  win.document.write(`<html><head><title>${escapeHTML(f.color)}</title>
     <style>body{font-family:Arial;padding:20px}h1{color:#0284c7}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#0284c7;color:white;padding:10px;text-align:left}</style></head>
-    <body><h1>${state.config.empresa_nombre || "RELMA"}</h1>
-    <h2>${f.color}</h2>
-    <p><b>Cliente:</b> ${f.cliente_nombre}<br><b>Producto:</b> ${f.producto || "-"}<br>
-    <b>Base:</b> ${f.base || "-"}<br><b>Capacidad:</b> ${f.capacidad_madre} LT<br>
+    <body><h1>${escapeHTML(state.config.empresa_nombre || "RELMA")}</h1>
+    <h2>${escapeHTML(f.color)}</h2>
+    <p><b>Cliente:</b> ${escapeHTML(f.cliente_nombre)}<br><b>Producto:</b> ${escapeHTML(f.producto || "-")}<br>
+    <b>Base:</b> ${escapeHTML(f.base || "-")}<br><b>Capacidad:</b> ${escapeHTML(f.capacidad_madre)} LT<br>
     <b>Fecha:</b> ${new Date().toLocaleString()}</p>
     <table><tr><th>Tinta</th><th>Cantidad</th></tr>${tintas}</table></body></html>`);
   win.document.close(); win.print();
 };
 
-// ==================== ETIQUETA CON OPCIONES ====================
 function leerOpcionesEtiqueta() {
   return {
     color:     $("#etqMostrarColor").checked,
@@ -991,14 +1100,14 @@ function generarEtiquetaHTML(opciones) {
     || opciones.base || opciones.cantidad || opciones.codigo;
   if (tieneHeader) {
     html += '<div class="header">';
-    if (opciones.color) html += `<div class="color">${f.color}</div>`;
+    if (opciones.color) html += `<div class="color">${escapeHTML(f.color)}</div>`;
     const metaParts = [];
     if (opciones.cliente && f.cliente_nombre) metaParts.push(f.cliente_nombre);
     if (opciones.producto && f.producto) metaParts.push(f.producto);
     if (opciones.base && f.base) metaParts.push(f.base);
     if (opciones.cantidad && f.capacidad_madre) metaParts.push(f.capacidad_madre + " LT");
     if (opciones.codigo && f.codigo) metaParts.push(f.codigo);
-    if (metaParts.length) html += `<div class="meta">${metaParts.join(" · ")}</div>`;
+    if (metaParts.length) html += `<div class="meta">${metaParts.map(escapeHTML).join(" · ")}</div>`;
     html += '</div>';
   }
 
@@ -1006,8 +1115,8 @@ function generarEtiquetaHTML(opciones) {
     html += '<div class="tintas">';
     for (const t of f.tintas) {
       html += `<div class="tinta-fila">
-        <div class="tinta-nombre">${t.tinta}</div>
-        <div class="tinta-cantidad">${t.cantidad_texto}</div>
+        <div class="tinta-nombre">${escapeHTML(t.tinta)}</div>
+        <div class="tinta-cantidad">${escapeHTML(t.cantidad_texto)}</div>
       </div>`;
     }
     html += '</div>';
@@ -1016,7 +1125,7 @@ function generarEtiquetaHTML(opciones) {
   }
 
   const footerParts = [];
-  if (opciones.empresa) footerParts.push(state.config.empresa_nombre || "RELMA");
+  if (opciones.empresa) footerParts.push(escapeHTML(state.config.empresa_nombre || "RELMA"));
   if (opciones.fecha) footerParts.push(
     new Date().toLocaleDateString() + " " +
     new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
@@ -1040,7 +1149,6 @@ $("#prepEtiqueta").onclick = () => {
   $("#modalEtiqueta").classList.remove("oculto");
 };
 
-// Listeners de los checkboxes para actualizar preview en vivo
 [
   "etqMostrarColor","etqMostrarCliente","etqMostrarProducto","etqMostrarBase",
   "etqMostrarCantidad","etqMostrarCodigo","etqMostrarTintas","etqMostrarFecha","etqMostrarEmpresa"
@@ -1200,11 +1308,10 @@ $("#prepMarcar").onclick = async () => {
   await cargarTodo();
 };
 
-// ==================== CONVERSOR ====================
 async function cargarFormulasConversor() {
   const sel = $("#convCargarFormula");
   sel.innerHTML = '<option value="">— Ninguna —</option>' +
-    state.formulas.map(f => `<option value="${f.id}">${f.cliente_nombre} → ${f.color}</option>`).join("");
+    state.formulas.map(f => `<option value="${escapeHTML(f.id)}">${escapeHTML(f.cliente_nombre)} → ${escapeHTML(f.color)}</option>`).join("");
 }
 
 $("#convCargarFormula").onchange = async (e) => {
@@ -1248,8 +1355,6 @@ function ejecutarConversion() {
   $("#salidaConv").textContent = out.join("\n") || "(vacío)";
 }
 
-$("#btnConvertir").onclick = ejecutarConversion;
-
 ["capOrigen","capDestino","capOrigenCustom","capDestinoCustom","maquinaConv","convMostrarML","entradaConv"].forEach(id => {
   const el = $("#" + id);
   if (el) {
@@ -1258,9 +1363,15 @@ $("#btnConvertir").onclick = ejecutarConversion;
   }
 });
 
-$("#btnCopiarConv").onclick = () => {
-  navigator.clipboard.writeText($("#salidaConv").textContent);
-  toast("Copiado al portapapeles", "exito");
+$("#btnCopiarConv").onclick = async () => {
+  const texto = $("#salidaConv").textContent || "";
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error("El navegador no permite copiar automáticamente.");
+    await navigator.clipboard.writeText(texto);
+    toast("Copiado al portapapeles", "exito");
+  } catch (error) {
+    toast(error.message || "No se pudo copiar el resultado", "error");
+  }
 };
 
 ["capOrigen", "capDestino"].forEach(id => {
@@ -1271,7 +1382,6 @@ $("#btnCopiarConv").onclick = () => {
   });
 });
 
-// ==================== HISTORIAL ====================
 async function pintarHistorial(filtros) {
   const params = new URLSearchParams();
   if (filtros) Object.entries(filtros).forEach(([k, v]) => { if (v) params.append(k, v); });
@@ -1281,12 +1391,12 @@ async function pintarHistorial(filtros) {
   cont.innerHTML = items.map(i => `
     <div class="item">
       <div>
-        <div class="fecha">${i.fecha}</div>
-        <b>${i.color || "—"}</b> · ${i.cliente_nombre || "—"}
-        <div class="ayuda">${i.producto || ""} · preparó: ${i.preparo || "-"}</div>
+        <div class="fecha">${escapeHTML(i.fecha)}</div>
+        <b>${escapeHTML(i.color || "—")}</b> · ${escapeHTML(i.cliente_nombre || "—")}
+        <div class="ayuda">${escapeHTML(i.producto || "")} · preparó: ${escapeHTML(i.preparo || "-")}</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <span class="estado-badge ${(i.estado || "EN PROCESO").replace(" ", "-")}">${i.estado || "EN PROCESO"}</span>
+        <span class="estado-badge ${escapeHTML((i.estado || "EN PROCESO").replace(" ", "-"))}">${escapeHTML(i.estado || "EN PROCESO")}</span>
         ${state.sesion.rol === "admin" ? `<button class="peligro borrar-hist" data-id="${i.id}">🗑</button>` : ""}
       </div>
     </div>`).join("");
@@ -1326,7 +1436,6 @@ $("#btnExportarHistCSV").onclick = async () => {
   toast("Historial exportado", "exito");
 };
 
-// ==================== IGUALAR COLOR ====================
 async function cargarSesiones() {
   try {
     const items = await api("/api/mezclador/sesiones");
@@ -1334,9 +1443,9 @@ async function cargarSesiones() {
     cont.innerHTML = items.length
       ? items.map(s => `
         <div class="sesion-card" data-id="${s.id}">
-          <h4>${s.muestra_nombre || "Sin nombre"}${s.muestra_codigo ? " · " + s.muestra_codigo : ""}</h4>
-          <div class="sub">${s.cliente_nombre || "-"}</div>
-          <div class="sub">${s.producto || ""} · ${s.base || ""}</div>
+          <h4>${escapeHTML(s.muestra_nombre || "Sin nombre")}${s.muestra_codigo ? " · " + escapeHTML(s.muestra_codigo) : ""}</h4>
+          <div class="sub">${escapeHTML(s.cliente_nombre || "-")}</div>
+          <div class="sub">${escapeHTML(s.producto || "")} · ${escapeHTML(s.base || "")}</div>
           <div class="badge">${s.num_ajustes} ajuste(s)</div>
         </div>`).join("")
       : '<div class="card">No hay sesiones abiertas. Crea una nueva.</div>';
@@ -1364,7 +1473,7 @@ function llenarTintasMezclador(productoNombre) {
   const maquina = prod ? prod.maquina : 64;
   $("#mezcTinta").innerHTML = '<option value="">— Selecciona —</option>' +
     state.tintas.filter(t => t.maquina === maquina)
-      .map(t => `<option value="${t.nombre}" data-cat="${t.categoria}">${t.nombre} (${t.categoria})</option>`).join("");
+      .map(t => `<option value="${escapeHTML(t.nombre)}" data-cat="${escapeHTML(t.categoria)}">${escapeHTML(t.nombre)} (${escapeHTML(t.categoria)})</option>`).join("");
 }
 
 function pintarHistorialMezclador(ajustes) {
@@ -1373,9 +1482,9 @@ function pintarHistorialMezclador(ajustes) {
   cont.innerHTML = ajustes.map(a => {
     const hora = (a.fecha || "").split(" ")[1] || "";
     return `<div class="ajuste-fila">
-      <span class="hora">${hora}</span>
-      <span class="tinta">${a.tinta}</span>
-      <span class="cantidad">+ ${a.cantidad_texto}</span>
+      <span class="hora">${escapeHTML(hora)}</span>
+      <span class="tinta">${escapeHTML(a.tinta)}</span>
+      <span class="cantidad">+ ${escapeHTML(a.cantidad_texto)}</span>
       <button class="del-btn" data-id="${a.id}">🗑</button>
     </div>`;
   }).join("");
@@ -1400,14 +1509,14 @@ function pintarTotalesMezclador(ajustes) {
     let v = unidad === "OZ" ? formatearOZ(t128)
           : unidad === "ML" ? formatearML(t128)
           : formatearOZ(t128) + "  (" + formatearML(t128) + ")";
-    return `<div class="total-fila"><span class="tinta">${tinta}</span><span class="valor">${v}</span></div>`;
+    return `<div class="total-fila"><span class="tinta">${escapeHTML(tinta)}</span><span class="valor">${escapeHTML(v)}</span></div>`;
   }).join("");
 }
 
 $("#btnNuevaSesion").onclick = () => {
-  $("#nsCliente").innerHTML = state.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join("");
+  $("#nsCliente").innerHTML = state.clientes.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`).join("");
   $("#nsProducto").innerHTML = '<option value="">— Selecciona —</option>' +
-    state.productos.map(p => `<option value="${p.nombre}">${p.nombre} (${p.categoria})</option>`).join("");
+    state.productos.map(p => `<option value="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)} (${escapeHTML(p.categoria)})</option>`).join("");
   ["nsMuestra","nsCodigo","nsBase","nsNotas"].forEach(id => $("#"+id).value = "");
   $("#nsCantidad").value = 1;
   $("#nsUnidad").value = "LT";
@@ -1460,7 +1569,7 @@ $("#btnAgregarAjuste").onclick = async () => {
 
   await api("/api/mezclador/sesion/" + sesionActual.id + "/ajuste", { method: "POST", body: JSON.stringify({
     tinta,
-    cantidad_texto: r.normalizado,   // ← se guarda NORMALIZADO
+    cantidad_texto: r.normalizado,
     cantidad_en_128: r.total128
   })});
   $("#mezcCantidad").value = "";
@@ -1517,7 +1626,6 @@ $("#btnCerrarSesion").onclick = async () => {
   await cargarTodo();
 };
 
-// ==================== BACKUP ====================
 $("#btnBackupJSON").onclick = async () => {
   const tablas = Array.from($$('.chk-grid input:checked')).map(c => c.value);
   if (!tablas.length) return toast("Selecciona al menos una tabla", "error");
@@ -1568,33 +1676,35 @@ $("#btnBackupCSV").onclick = async () => {
   }
 };
 
-$("#btnBackupDB").onclick = () => { window.location.href = "/api/backup/db?u=" + state.sesion.usuario; };
-
-$("#btnBackupXLSX").onclick = async () => {
-  const tablas = Array.from($$('.chk-grid input:checked')).map(c => c.value);
-  if (!tablas.length) return toast("Selecciona al menos una tabla", "error");
+$("#btnBackupDB").onclick = async () => {
   try {
-    const r = await fetch("/api/backup/xlsx", {
-      method: "POST",
+    toast("Descargando base de datos...", "aviso");
+    const r = await fetch("/api/backup/db", {
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        "x-usuario": state.sesion.usuario, "x-rol": state.sesion.rol
-      },
-      body: JSON.stringify({ tablas })
+        "x-usuario": state.sesion.usuario, 
+        "x-rol": state.sesion.rol
+      }
     });
-    if (!r.ok) throw new Error("Error " + r.status);
+    
+    if (!r.ok) throw new Error("Error al descargar la base de datos");
+    
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "relma_backup_" + new Date().toISOString().slice(0,10) + ".xlsx";
+    a.download = "relma_db_" + new Date().toISOString().slice(0,10) + ".db";
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
-    toast("Excel con pestañas descargado", "exito");
-  } catch (e) { toast("Error: " + e.message, "error"); }
+    
+    toast("Base de datos descargada", "exito");
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
 };
 
-// ==================== IMPORTADOR EXCEL ====================
 let archivoImportTemp = null;
 
 $("#inputImportar").onchange = (e) => {
@@ -1644,8 +1754,8 @@ $("#inputRestore").onchange = async (e) => {
     const json = JSON.parse(await file.text());
     archivoRestoreTemp = json;
     const preview = await api("/api/restore/preview", { method: "POST", body: JSON.stringify({ data: json.data }) });
-    const resumen = Object.entries(preview.resumen).filter(([k, v]) => v > 0)
-      .map(([k, v]) => `<div>• <b>${k}</b>: ${v} fila(s)</div>`).join("");
+    const resumen = Object.entries(preview.resumen || {}).filter(([k, v]) => Number(v) > 0)
+      .map(([k, v]) => `<div>• <b>${escapeHTML(k)}</b>: ${escapeHTML(v)} fila(s)</div>`).join("");
     $("#restoreResumen").innerHTML = resumen || "<p>El archivo no contiene datos.</p>";
     $("#restorePreview").classList.remove("oculto");
     toast("Archivo leído correctamente", "exito");
@@ -1679,23 +1789,31 @@ $("#btnAplicarRestore").onclick = async () => {
   } catch (e) { toast("Error: " + e.message, "error"); }
 };
 
-// ==================== CONFIG — USUARIOS ====================
 async function cargarUsuarios() {
   const lista = await api("/api/usuarios");
-  $("#listaUsuarios").innerHTML = lista.map(u => `
+  const cont = $("#listaUsuarios");
+  cont.innerHTML = lista.map(u => `
     <div class="usuario-fila ${u.activo ? "" : "inactivo"}">
       <div>
-        <b>${u.usuario}</b> <span class="rol ${u.rol}">${u.rol}</span>
-        ${u.nombre ? `<div class="ayuda">${u.nombre}</div>` : ""}
+        <b>${escapeHTML(u.usuario)}</b> <span class="rol ${escapeHTML(u.rol)}">${escapeHTML(u.rol)}</span>
+        ${u.nombre ? `<div class="ayuda">${escapeHTML(u.nombre)}</div>` : ""}
       </div>
-      <div style="display:flex;gap:6px">
-        <button class="secundario" onclick="cambiarPass(${u.id})">🔑 Contraseña</button>
-        <button class="secundario" onclick="toggleActivo(${u.id}, ${u.activo ? 1 : 0})">
+      <div class="acciones-usuario" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="secundario" data-user-accion="pass" data-id="${escapeHTML(u.id)}">🔑 Contraseña</button>
+        <button type="button" class="secundario" data-user-accion="activo" data-id="${escapeHTML(u.id)}" data-activo="${u.activo ? 1 : 0}">
           ${u.activo ? "⏸" : "▶️"} ${u.activo ? "Desactivar" : "Activar"}
         </button>
-        ${u.usuario !== "admin" ? `<button class="peligro" onclick="borrarUsuario(${u.id}, '${u.usuario}')">🗑</button>` : ""}
+        ${u.usuario !== "admin" ? `<button type="button" class="peligro" data-user-accion="borrar" data-id="${escapeHTML(u.id)}" data-usuario="${escapeHTML(u.usuario)}">🗑</button>` : ""}
       </div>
     </div>`).join("");
+  cont.querySelectorAll("[data-user-accion]").forEach(btn => {
+    btn.onclick = async () => {
+      const id = Number(btn.dataset.id);
+      if (btn.dataset.userAccion === "pass") await window.cambiarPass(id);
+      if (btn.dataset.userAccion === "activo") await window.toggleActivo(id, Number(btn.dataset.activo));
+      if (btn.dataset.userAccion === "borrar") await window.borrarUsuario(id, btn.dataset.usuario);
+    };
+  });
 }
 window.cambiarPass = async (id) => {
   const pass = prompt("Nueva contraseña:");
@@ -1708,7 +1826,7 @@ window.toggleActivo = async (id, activo) => {
   cargarUsuarios();
 };
 window.borrarUsuario = async (id, usuario) => {
-  const ok = await confirmar("Eliminar usuario", `<p>¿Eliminar al usuario <b>${usuario}</b>?</p>`);
+  const ok = await confirmar("Eliminar usuario", `<p>¿Eliminar al usuario <b>${escapeHTML(usuario)}</b>?</p>`);
   if (ok) { await api("/api/usuarios/" + id, { method: "DELETE" }); cargarUsuarios(); }
 };
 
@@ -1728,7 +1846,6 @@ $("#btnCrearUsuario").onclick = async () => {
   } catch (e) { toast("Error: " + e.message, "error"); }
 };
 
-// ==================== CONFIG — EMPRESA / PREFS ====================
 function cargarConfigEnForms() {
   const c = state.config;
   $("#cfgEmpresaNombre").value = c.empresa_nombre || "";
@@ -1772,15 +1889,14 @@ $("#btnGuardarPrefs").onclick = async () => {
   toast("Preferencias guardadas", "exito");
 };
 
-// ==================== CONFIG — CATÁLOGOS ====================
 async function cargarCatalogos() {
   const tintas = await api("/api/tintas");
   $("#listaCatTintas").innerHTML = tintas.map(t =>
-    `<div class="log-fila"><b>${t.codigo}</b> · ${t.nombre} <span class="rol">${t.categoria}</span> · M${t.maquina}</div>`
+    `<div class="log-fila"><b>${escapeHTML(t.codigo)}</b> · ${escapeHTML(t.nombre)} <span class="rol">${escapeHTML(t.categoria)}</span> · M${escapeHTML(t.maquina)}</div>`
   ).join("");
   const prods = await api("/api/productos");
   $("#listaCatProductos").innerHTML = prods.map(p =>
-    `<div class="log-fila"><b>${p.codigo}</b> · ${p.nombre} <span class="rol">${p.categoria}</span> · M${p.maquina}</div>`
+    `<div class="log-fila"><b>${escapeHTML(p.codigo)}</b> · ${escapeHTML(p.nombre)} <span class="rol">${escapeHTML(p.categoria)}</span> · M${escapeHTML(p.maquina)}</div>`
   ).join("");
 }
 
@@ -1814,7 +1930,6 @@ $("#btnCrearProducto").onclick = async () => {
   } catch (e) { toast("Error: " + e.message, "error"); }
 };
 
-// ==================== CONFIG — LOG ====================
 async function cargarLog() {
   const params = new URLSearchParams();
   if ($("#logFiltroUsuario").value) params.append("usuario", $("#logFiltroUsuario").value);
@@ -1824,10 +1939,10 @@ async function cargarLog() {
   $("#listaLog").innerHTML = items.length
     ? items.slice(0, 200).map(l => `
       <div class="log-fila">
-        <span class="fecha">${l.fecha}</span> ·
-        <b>${l.usuario}</b> ·
-        <span class="accion">${l.accion}</span>
-        sobre <b>${l.tabla}</b>${l.registro_id ? "#" + l.registro_id : ""}
+        <span class="fecha">${escapeHTML(l.fecha)}</span> ·
+        <b>${escapeHTML(l.usuario)}</b> ·
+        <span class="accion">${escapeHTML(l.accion)}</span>
+        sobre <b>${escapeHTML(l.tabla)}</b>${l.registro_id ? "#" + escapeHTML(l.registro_id) : ""}
       </div>`).join("")
     : "<p class='ayuda'>Sin eventos.</p>";
 }
@@ -1844,13 +1959,12 @@ $("#btnExportarLogCSV").onclick = async () => {
   toast("Log exportado", "exito");
 };
 
-// ==================== CONFIG — ZONA PELIGROSA ====================
 $$("[data-peligro]").forEach(btn => {
   btn.onclick = async () => {
     const que = btn.dataset.peligro;
     const palabra = btn.dataset.confirm;
     const ok = await confirmar("⚠️ Acción destructiva",
-      `<p>Esta acción <b>NO se puede deshacer</b>.</p><p>¿Borrar <b>${que}</b>?</p>`, palabra);
+      `<p>Esta acción <b>NO se puede deshacer</b>.</p><p>¿Borrar <b>${escapeHTML(que)}</b>?</p>`, palabra);
     if (!ok) return;
     await api("/api/peligro/borrar-todo", { method: "POST", body: JSON.stringify({ que }) });
     toast("Acción completada", "exito");
@@ -1863,18 +1977,16 @@ function cargarConfig() {
   cargarUsuarios();
 }
 
-// ==================== SELECTS ====================
 function llenarSelects() {
   const f = $("#filtroCliente");
-  const cli = state.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join("");
+  const cli = state.clientes.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`).join("");
   f.innerHTML = '<option value="">— Todos los clientes —</option>' + cli;
   $("#histCliente").innerHTML = '<option value="">— Todos —</option>' + cli;
-  const prod = state.productos.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join("");
+  const prod = state.productos.map(p => `<option value="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)}</option>`).join("");
   $("#filtroProducto").innerHTML = '<option value="">— Todos los productos —</option>' + prod;
   $("#histProducto").innerHTML = '<option value="">— Todos —</option>' + prod;
 }
 
-// ==================== RESPALDOS AUTOMÁTICOS ====================
 async function cargarRespaldos() {
   $("#cfgBackupHoras").value = state.config.pref_backup_horas || 6;
   $("#cfgBackupDrive").value = state.config.pref_backup_drive || "";
@@ -1891,17 +2003,22 @@ async function cargarRespaldos() {
       const kb = (item.bytes / 1024).toFixed(1);
       return `<div class="log-fila" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div>
-          <b>${item.archivo}</b>
-          <div class="ayuda">${fecha} · ${kb} KB</div>
+          <b>${escapeHTML(item.archivo)}</b>
+          <div class="ayuda">${escapeHTML(fecha)} · ${escapeHTML(kb)} KB</div>
         </div>
         <div style="display:flex;gap:6px">
-          <button class="secundario" onclick="descargarRespaldo('${item.archivo}')">⬇</button>
-          ${state.sesion.rol === "admin" ? `<button class="peligro" onclick="borrarRespaldo('${item.archivo}')">🗑</button>` : ""}
+          <button type="button" class="secundario" data-backup-accion="descargar" data-archivo="${escapeHTML(item.archivo)}" aria-label="Descargar respaldo">⬇</button>
+          ${state.sesion.rol === "admin" ? `<button type="button" class="peligro" data-backup-accion="borrar" data-archivo="${escapeHTML(item.archivo)}" aria-label="Borrar respaldo">🗑</button>` : ""}
         </div>
       </div>`;
     }).join("");
+    cont.querySelectorAll("[data-backup-accion]").forEach(btn => {
+      btn.onclick = () => btn.dataset.backupAccion === "descargar"
+        ? window.descargarRespaldo(btn.dataset.archivo)
+        : window.borrarRespaldo(btn.dataset.archivo);
+    });
   } catch (e) {
-    $("#listaRespaldos").innerHTML = "<p class='ayuda'>Error: " + e.message + "</p>";
+    $("#listaRespaldos").textContent = "Error al cargar respaldos: " + e.message;
   }
 }
 
@@ -1910,7 +2027,7 @@ window.descargarRespaldo = (archivo) => {
 };
 
 window.borrarRespaldo = async (archivo) => {
-  const ok = await confirmar("Borrar respaldo", `<p>¿Eliminar el archivo <b>${archivo}</b>?</p>`);
+  const ok = await confirmar("Borrar respaldo", `<p>¿Eliminar el archivo <b>${escapeHTML(archivo)}</b>?</p>`);
   if (!ok) return;
   await api("/api/respaldos/" + encodeURIComponent(archivo), { method: "DELETE" });
   toast("Respaldo borrado", "exito");
@@ -1958,7 +2075,6 @@ $("#btnBackupAhora").onclick = async () => {
   }
 };
 
-// ==================== FEEDBACK DE CANTIDAD ====================
 function actualizarFeedback(inputId, feedbackId, maquina) {
   const input = $("#" + inputId);
   const fb = $("#" + feedbackId);
@@ -1999,10 +2115,527 @@ function actualizarFeedback(inputId, feedbackId, maquina) {
   });
 }
 
-// Aplicar al input del mezclador
 setTimeout(() => {
   actualizarFeedback("mezcCantidad", "mezcFeedback", 32);
 }, 100);
 
-// ==================== ARRANQUE ====================
 verificarAcceso();
+
+const pickerColor = document.getElementById('color-picker');
+const spanHex = document.getElementById('hex-value');
+const btnBuscar = document.getElementById('btn-buscar');
+const divResultado = document.getElementById('resultado');
+
+let formulasLineaActuales = []; 
+let unidadActualLinea = 'GALON'; 
+
+if (pickerColor && spanHex) {
+  pickerColor.addEventListener('input', (e) => {
+    spanHex.textContent = e.target.value;
+  });
+}
+
+function hexToRgb(hex) {
+  const bigint = parseInt(hex.replace('#', ''), 16);
+  return {
+    r: (bigint >> 16) & 255,
+    g: (bigint >> 8) & 255,
+    b: bigint & 255
+  };
+}
+
+if (btnBuscar) {
+  btnBuscar.addEventListener('click', async () => {
+    const hex = pickerColor.value;
+    const rgb = hexToRgb(hex);
+    const tipoPintura = document.getElementById('tipo-pintura').value;
+
+    divResultado.innerHTML = '<p style="padding:20px">🔎 Buscando color similar...</p>';
+
+    try {
+      const resBusqueda = await fetch('/api/color/buscar-rgb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rgb)
+      });
+      const colorEncontrado = await resBusqueda.json();
+
+      if (!colorEncontrado || !colorEncontrado.codigo) {
+        divResultado.innerHTML = '<div class="card-config"><p>❌ No se encontró ningún color similar.</p></div>';
+        return;
+      }
+
+      const resFormula = await fetch('/api/color/formula', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo: colorEncontrado.codigo, tipo_pintura: tipoPintura })
+      });
+      formulasLineaActuales = await resFormula.json();
+
+      pintarResultadoBusqueda(hex, colorEncontrado, tipoPintura);
+
+    } catch (error) {
+      console.error(error);
+      divResultado.innerHTML = '<div class="card-config"><p>❌ Error al buscar. Abre F12 para ver el detalle.</p></div>';
+    }
+  });
+}
+
+function pintarResultadoBusqueda(hex, colorEncontrado, tipoPintura) {
+  let html = `
+    <div class="card-config">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="width:70px;height:70px;background:${hex};border-radius:12px;
+                    border:3px solid #444;flex-shrink:0;
+                    box-shadow:0 0 20px ${hex}88"></div>
+        <div style="flex:1">
+          <h2 style="margin:0;color:#0ea5e9;font-size:1.6rem">
+            ${escapeHTML(colorEncontrado.codigo)} — ${escapeHTML(colorEncontrado.nombre)}
+          </h2>
+          <p style="margin:6px 0 0 0;color:#94a3b8;font-size:0.9rem">
+            ${colorEncontrado.locator ? '📍 ' + escapeHTML(colorEncontrado.locator) + ' · ' : ''}
+            RGB: ${escapeHTML(colorEncontrado.rgb_r)}, ${escapeHTML(colorEncontrado.rgb_g)}, ${escapeHTML(colorEncontrado.rgb_b)}
+          </p>
+        </div>
+      </div>
+    </div>`;
+
+  if (!formulasLineaActuales || formulasLineaActuales.length === 0) {
+    html += `
+      <div class="card-config">
+        <p style="font-size:1.05rem">⚠️ <b>No hay fórmula cargada</b> para <b>${escapeHTML(colorEncontrado.codigo)}</b> en <b>${escapeHTML(tipoPintura)}</b>.</p>
+        <p style="color:#94a3b8;font-size:0.9rem">Prueba con otro tipo de pintura (Base Agua ↔ Base Solvente).</p>
+      </div>`;
+    divResultado.innerHTML = html;
+    return;
+  }
+
+  html += `
+    <div class="fila-botones" style="margin-top:20px; justify-content:flex-start; gap:10px; flex-wrap:wrap">
+      <button class="secundario ${unidadActualLinea === 'LITRO' ? 'activo' : ''}" onclick="cambiarUnidadLinea('LITRO')">🧪 Litro</button>
+      <button class="secundario ${unidadActualLinea === 'GALON' ? 'activo' : ''}" onclick="cambiarUnidadLinea('GALON')">🥫 Galón</button>
+      <button class="secundario ${unidadActualLinea === 'CUBETA' ? 'activo' : ''}" onclick="cambiarUnidadLinea('CUBETA')">🪣 Cubeta</button>
+    </div>`;
+
+  formulasLineaActuales.forEach((f, idx) => {
+    let colorantes = [];
+    try { colorantes = typeof f.colorantes === 'string' ? JSON.parse(f.colorantes) : f.colorantes; } catch(e) {}
+    
+    const maquina = (f.marca === 'Maxitoner' || f.proveedor_tinta === 'Maxitoner') ? 32 : 64;
+
+    const tintasHTML = colorantes.map(c => {
+      let oz = 0;
+      if (unidadActualLinea === 'LITRO') oz = c.oz_litro || 0;
+      else if (unidadActualLinea === 'CUBETA') oz = c.oz_cubeta || 0;
+      else oz = c.oz_galon || 0;
+
+      const total128 = Math.round(oz * 128);
+      const texto = total128 > 0 ? formatearOZConMaquina(total128, maquina) : "—";
+      
+      return `
+        <div class="preparar-tinta">
+          <div class="nombre">${escapeHTML((c.tinta || '?').toUpperCase())}</div>
+          <div class="cantidad">${escapeHTML(texto)}</div>
+        </div>`;
+    }).join('');
+
+    html += `
+      <div class="card-config" style="margin-top:16px">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h3 style="margin-top:0;color:#0ea5e9;font-size:1.1rem">
+              📋 ${formulasLineaActuales.length > 1 ? 'Fórmula ' + (idx+1) + ' — ' : ''}
+              Base <span style="color:#22d3ee">${escapeHTML(f.base_color)}</span>
+              ${f.variante && f.variante !== 'general' ? ` <span style="color:#94a3b8;font-size:0.9rem">(${escapeHTML(f.variante)})</span>` : ''}
+            </h3>
+            <p style="color:#94a3b8;font-size:0.85rem;margin-top:0">
+              ${escapeHTML(f.tipo_pintura)} · ${escapeHTML(f.marca)} · Referencia: <b style="color:#22d3ee">1 ${escapeHTML(unidadActualLinea)}</b>
+            </p>
+          </div>
+          <div class="fila-botones" style="margin:0; gap:8px;">
+            <button class="secundario" onclick="copiarFormulaLinea(${idx})" style="padding:6px 12px; font-size:0.85rem">📋 Copiar</button>
+            <button class="primario" data-accion-linea="base" data-indice="${idx}" data-codigo="${escapeHTML(colorEncontrado.codigo)}" style="padding:6px 12px; font-size:0.85rem">📝 Usar como base</button>
+          </div>
+        </div>
+        <div style="margin-top:14px">
+          ${tintasHTML}
+        </div>
+      </div>`;
+  });
+
+  divResultado.innerHTML = html;
+  divResultado.querySelectorAll('[data-accion-linea="base"]').forEach(btn => {
+    btn.addEventListener("click", () => usarComoBaseLinea(Number(btn.dataset.indice), btn.dataset.codigo));
+  });
+}
+
+window.cambiarUnidadLinea = (nuevaUnidad) => {
+  unidadActualLinea = nuevaUnidad;
+  const hex = pickerColor.value;
+  const rgb = hexToRgb(hex);
+  const codigoAct = formulasLineaActuales.length > 0 ? formulasLineaActuales[0].codigo : '';
+  const colorFalso = { codigo: codigoAct, nombre: divResultado.querySelector('h2').textContent.split('—')[1].trim(), rgb_r: rgb.r, rgb_g: rgb.g, rgb_b: rgb.b };
+  pintarResultadoBusqueda(hex, colorFalso, document.getElementById('tipo-pintura').value);
+};
+
+window.copiarFormulaLinea = (idx) => {
+  const f = formulasLineaActuales[idx];
+  if (!f) return;
+  let colorantes = [];
+  try { colorantes = JSON.parse(f.colorantes); } catch(e) {}
+  
+  const maquina = (f.marca === 'Maxitoner') ? 32 : 64;
+  let texto = `Fórmula: ${f.codigo} - ${f.nombre}\nBase: ${f.base_color} (${unidadActualLinea})\n\n`;
+  
+  colorantes.forEach(c => {
+    let oz = unidadActualLinea === 'LITRO' ? c.oz_litro : (unidadActualLinea === 'CUBETA' ? c.oz_cubeta : c.oz_galon);
+    const total128 = Math.round((oz || 0) * 128);
+    if (total128 > 0) {
+      texto += `- ${c.tinta}: ${formatearOZConMaquina(total128, maquina)}\n`;
+    }
+  });
+  
+  navigator.clipboard.writeText(texto);
+  toast("✅ Fórmula copiada al portapapeles", "exito");
+};
+
+window.usarComoBaseLinea = (idx, codigo) => {
+  const f = formulasLineaActuales[idx];
+  if (!f) return;
+  let colorantes = [];
+  try { colorantes = JSON.parse(f.colorantes); } catch(e) {}
+  
+  const maquina = (f.marca === 'Maxitoner') ? 32 : 64;
+  const capacidad = unidadActualLinea === 'LITRO' ? 1 : (unidadActualLinea === 'CUBETA' ? 19 : 4);
+
+  const tintasParaModal = [];
+  colorantes.forEach(c => {
+    let oz = unidadActualLinea === 'LITRO' ? c.oz_litro : (unidadActualLinea === 'CUBETA' ? c.oz_cubeta : c.oz_galon);
+    const total128 = Math.round((oz || 0) * 128);
+    if (total128 > 0) {
+      const nombrePDF = c.tinta.toUpperCase(); 
+      const tintaCatalogo = state.tintas.find(t => 
+        t.maquina === maquina && (nombrePDF.includes(t.nombre.toUpperCase()) || t.nombre.toUpperCase().includes(nombrePDF.split(' ')[0]))
+      );
+
+      tintasParaModal.push({
+        tinta: tintaCatalogo ? tintaCatalogo.nombre : c.tinta,
+        cantidad_texto: formatearOZConMaquina(total128, maquina)
+      });
+    }
+  });
+
+  tintasParaModal.forEach(t => {
+    t.cantidad_texto = t.cantidad_texto.replace(/^0 HOZ \+ /, '');
+  });
+
+  const formulaFalsa = {
+    color: f.nombre === 'Desconocido' ? '' : f.nombre,
+    codigo: f.codigo,
+    producto: f.tipo_pintura, 
+    base: f.base_color,
+    capacidad_madre: capacidad,
+    maquina: maquina,
+    notas: "Fórmula base tomada de línea comercial",
+    tintas: tintasParaModal
+  };
+
+  abrirFormula(formulaFalsa);
+  toast("📝 Fórmula cargada en el editor. Asigna un cliente y guarda.", "exito");
+};
+
+const btnBuscarCodigo = document.getElementById('btn-buscar-codigo');
+const inputCodigo = document.getElementById('input-codigo');
+
+if (btnBuscarCodigo) {
+  btnBuscarCodigo.addEventListener('click', async () => {
+    const codigo = inputCodigo.value.trim().toUpperCase();
+    if (!codigo) return toast("Escribe un código primero", "error");
+
+    divResultado.innerHTML = '<p style="padding:20px">🔎 Buscando código...</p>';
+
+    try {
+      const res = await fetch('/api/color/formula-codigo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo })
+      });
+      formulasLineaActuales = await res.json();
+
+      if (!formulasLineaActuales || formulasLineaActuales.length === 0) {
+        divResultado.innerHTML = `<div class="card-config"><p>❌ No se encontró ninguna fórmula con el código <b>${escapeHTML(codigo)}</b>.</p></div>`;
+        return;
+      }
+
+      const colorFalso = { 
+        codigo: formulasLineaActuales[0].codigo, 
+        nombre: formulasLineaActuales[0].nombre,
+        rgb_r: 0, rgb_g: 0, rgb_b: 0
+      };
+      
+      pintarResultadoBusqueda('#000000', colorFalso, formulasLineaActuales[0].tipo_pintura);
+
+    } catch (error) {
+      console.error(error);
+      divResultado.innerHTML = '<div class="card-config"><p>❌ Error al buscar por código.</p></div>';
+    }
+  });
+}
+
+const btnCompararFormula = document.getElementById('btnCompararFormula');
+const compEntrada = document.getElementById('compEntrada');
+const compResultados = document.getElementById('compResultados');
+
+if (btnCompararFormula) {
+  btnCompararFormula.addEventListener('click', async () => {
+    const texto = compEntrada.value.trim();
+    const tipo = document.getElementById('compTipoPintura').value;
+    
+    if (!texto) return toast("Escribe algunas tintas primero", "error");
+
+    const lineas = texto.split('\n').filter(l => l.trim());
+    const tintas_usuario = [];
+
+    lineas.forEach(ln => {
+      const partes = ln.split(/[=:]/);
+      if (partes.length >= 2) {
+        const tinta = partes[0].trim();
+        const cantStr = partes[1].trim();
+        
+        const total128 = parsearCantidad(cantStr);
+        if (total128 !== null) {
+          tintas_usuario.push({ tinta, cantidad_en_128: total128 });
+        }
+      }
+    });
+
+    if (tintas_usuario.length === 0) {
+      return toast("No se entendió ninguna tinta. Revisa el formato (Tinta = Cantidad).", "error");
+    }
+
+    compResultados.innerHTML = '<p>🔎 Calculando similitud matemática...</p>';
+
+    try {
+      const res = await fetch('/api/comparar-formulas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tintas_usuario, tipo_pintura: tipo })
+      });
+      
+      const resultados = await res.json();
+
+      if (resultados.length === 0) {
+        compResultados.innerHTML = '<div class="card-config"><p>❌ No se encontraron fórmulas parecidas (más del 50%).</p></div>';
+        return;
+      }
+
+      let html = `<h3>🏆 Los colores más parecidos son:</h3>`;
+      
+      resultados.forEach(r => {
+        let colorBarra = '#ef4444'; 
+        if (r.porcentaje_similitud >= 80) colorBarra = '#22c55e';
+        else if (r.porcentaje_similitud >= 65) colorBarra = '#eab308';
+
+        const porcentaje = Math.max(0, Math.min(100, Number(r.porcentaje_similitud) || 0));
+        html += `
+          <div class="card-config" style="margin-bottom:15px">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;gap:10px">
+              <h3 style="margin:0; color:#0ea5e9">${escapeHTML(r.codigo)} — ${escapeHTML(r.nombre)}</h3>
+              <span style="font-size:1.5rem; font-weight:bold; color:${colorBarra}">
+                ${porcentaje}%
+              </span>
+            </div>
+            <div style="width:100%; background:#334155; height:10px; border-radius:5px; margin-bottom:10px; overflow:hidden">
+              <div style="width:${porcentaje}%; background:${colorBarra}; height:100%"></div>
+            </div>
+            <p class="ayuda" style="margin-top:0">Base: <b>${escapeHTML(r.base_color)}</b> · Tipo: ${escapeHTML(r.tipo_pintura)}</p>
+            <div style="display:flex; gap:10px; margin-top:10px">
+               <button type="button" class="secundario" data-codigo-formula-linea="${escapeHTML(r.codigo)}">👁 Ver Fórmula</button>
+            </div>
+          </div>
+        `;
+      });
+
+      compResultados.innerHTML = html;
+      compResultados.querySelectorAll("[data-codigo-formula-linea]").forEach(btn => {
+        btn.addEventListener("click", () => verFormulaLinea(btn.dataset.codigoFormulaLinea));
+      });
+
+    } catch (e) {
+      console.error(e);
+      compResultados.innerHTML = '<p>❌ Error al comparar.</p>';
+    }
+  });
+}
+
+window.verFormulaLinea = async (codigo) => {
+  const tipo = document.getElementById('compTipoPintura').value;
+  const res = await fetch('/api/color/formula', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codigo, tipo_pintura: tipo })
+  });
+  formulasLineaActuales = await res.json();
+  
+  if (formulasLineaActuales.length > 0) {
+    document.querySelectorAll("nav button").forEach(x => x.classList.remove("activo"));
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("activo"));
+    document.querySelector('[data-tab="comparar"]').classList.add("activo");
+    document.getElementById('tab-comparar').classList.add("activo");
+
+    const colorFalso = { codigo: codigo, nombre: formulasLineaActuales[0].nombre, rgb_r: 0, rgb_g: 0, rgb_b: 0 };
+    pintarResultadoBusqueda('#000000', colorFalso, tipo);
+  }
+};
+
+let formulaParaIgualar = null;
+
+function prepararModalIgualar(f, notasExtra = "") {
+  formulaParaIgualar = f;
+  $("#modalDetalle").classList.add("oculto");
+  
+  $("#nsCliente").innerHTML = state.clientes.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`).join("");
+  $("#nsProducto").innerHTML = '<option value="">— Selecciona —</option>' +
+    state.productos.map(p => `<option value="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)} (${escapeHTML(p.categoria)})</option>`).join("");
+  
+  $("#nsCliente").value = f.cliente_id || "";
+  $("#nsMuestra").value = f.color || "";
+  $("#nsCodigo").value = f.codigo || "";
+  $("#nsProducto").value = f.producto || "";
+  $("#nsBase").value = f.base || "";
+  $("#nsCantidad").value = f.capacidad_madre || 1;
+  $("#nsUnidad").value = "LT";
+  $("#nsNotas").value = notasExtra || "Sesión iniciada a partir de la fórmula base.";
+  
+  $("#modalNuevaSesion").classList.remove("oculto");
+}
+
+const btnIgualar = document.getElementById("detBtnIgualar");
+if (btnIgualar) {
+  btnIgualar.onclick = () => {
+    if (!formulaDetalleActual) return;
+    prepararModalIgualar(formulaDetalleActual);
+  };
+}
+
+const btnIgualarConv = document.getElementById("detBtnIgualarConvertida");
+if (btnIgualarConv) {
+  btnIgualarConv.onclick = () => {
+    if (!formulaDetalleActual || !conversionTemporal) return;
+    const fConvertida = {
+      ...formulaDetalleActual,
+      capacidad_madre: conversionTemporal.destino,
+      tintas: conversionTemporal.tintas
+    };
+    prepararModalIgualar(fConvertida, `Sesión iniciada a partir de la conversión a ${conversionTemporal.destino} LT.`);
+  };
+}
+
+const botonConvertir = document.getElementById("detBtnConvertir");
+const originalConvertir = botonConvertir.onclick;
+botonConvertir.onclick = () => {
+  originalConvertir();
+  if (conversionTemporal) {
+    document.getElementById("detBtnIgualarConvertida").classList.remove("oculto");
+  } else {
+    document.getElementById("detBtnIgualarConvertida").classList.add("oculto");
+  }
+};
+
+$("#nsCrear").onclick = async () => {
+  const cliente_id = Number($("#nsCliente").value);
+  const cantidad = parseFloat($("#nsCantidad").value);
+  if (!cliente_id || !cantidad) return toast("Faltan datos", "error");
+  
+  try {
+    const r = await api("/api/mezclador/sesion", { method: "POST", body: JSON.stringify({
+      cliente_id,
+      muestra_nombre: $("#nsMuestra").value.trim(),
+      muestra_codigo: $("#nsCodigo").value.trim(),
+      producto: $("#nsProducto").value,
+      base: $("#nsBase").value.trim(),
+      tamano_cantidad: cantidad,
+      tamano_unidad: $("#nsUnidad").value,
+      notas: $("#nsNotas").value.trim(),
+    })});
+    
+    $("#modalNuevaSesion").classList.add("oculto");
+
+    if (formulaParaIgualar && formulaParaIgualar.tintas) {
+      toast("Cargando tintas base...", "aviso");
+      for (const t of formulaParaIgualar.tintas) {
+        const total128 = parsearCantidad(t.cantidad_texto);
+        if (total128 !== null) {
+          await api("/api/mezclador/sesion/" + r.id + "/ajuste", { 
+            method: "POST", 
+            body: JSON.stringify({ 
+              tinta: t.tinta, 
+              cantidad_texto: t.cantidad_texto,
+              cantidad_en_128: total128 
+            }) 
+          });
+        }
+      }
+      formulaParaIgualar = null;
+    }
+
+    await abrirSesion(r.id);
+    document.querySelector('nav button[data-tab="mezclador"]').click();
+    
+  } catch (e) { 
+    toast("Error: " + e.message, "error"); 
+  }
+};
+
+const btnGuardarConv = document.getElementById("btnGuardarConv");
+if (btnGuardarConv) {
+  btnGuardarConv.onclick = () => {
+    const capOrigen = $("#capOrigen").value === "custom" ? (parseFloat($("#capOrigenCustom").value) || 1) : Number($("#capOrigen").value);
+    const capDestino = $("#capDestino").value === "custom" ? (parseFloat($("#capDestinoCustom").value) || 1) : Number($("#capDestino").value);
+    const maquina = Number($("#maquinaConv").value);
+    const texto = ($("#entradaConv").value || "").trim();
+    
+    if (!texto) return toast("Pega algunas tintas primero", "error");
+
+    const lineas = texto.split("\n").filter(l => l.trim());
+    const tintasConvertidas = [];
+
+    for (const linea of lineas) {
+      const partes = linea.split(/[|=]/);
+      if (partes.length < 2) continue;
+      
+      const tinta = partes[0].trim().toUpperCase();
+      const cant = partes.slice(1).join("=").trim();
+      const total128 = parsearCantidad(cant);
+      
+      if (total128 !== null) {
+        const conv = (total128 / capOrigen) * capDestino;
+        tintasConvertidas.push({
+          tinta,
+          cantidad_texto: formatearOZConMaquina(conv, maquina),
+          categoria: maquina === 64 ? "ARQUITECTONICA" : "INDUSTRIAL"
+        });
+      }
+    }
+
+    if (tintasConvertidas.length === 0) {
+      return toast("No se pudo entender ninguna tinta", "error");
+    }
+
+    const f = $("#convCargarFormula").value ? state.formulas.find(x => x.id == $("#convCargarFormula").value) : null;
+
+    const formulaFalsa = {
+      color: f ? f.color : "",
+      codigo: f ? f.codigo : "",
+      producto: f ? f.producto : "",
+      base: f ? f.base : "",
+      capacidad_madre: capDestino,
+      maquina: maquina,
+      notas: `Convertido de ${capOrigen} LT a ${capDestino} LT`,
+      tintas: tintasConvertidas
+    };
+
+    abrirFormula(formulaFalsa);
+    toast("Revisa los datos y guarda la nueva fórmula", "exito");
+  };
+}

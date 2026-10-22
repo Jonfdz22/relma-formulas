@@ -1,0 +1,69 @@
+   Formulario Base solvente con Tintas Maxitoner para
+               Metalex Base Entintable
+                                                                                                              Fechas: 09/02/2024
+                                                                                            Maxitoner                 Quart                Gallon               Five Gallon
+  Color ID                  Color Name                          Base Type
+                                                                                            Colorants           oz   32   64 128 oz        32   64 128 oz         32   64 128
+                                                      Metalex Ultra Deep Brillante         Orange (UO)                2                    8     1         1      10   1
+  CSW0119                   Amarillo XX                         F75TJ0104             Yellow Medium (MY)        2    31    1         11    29    1    1    59     20   1      1
+*Desarrollo en        F75YJ29-19, F75YJ29-4                   con Maxitoner
+   tienda
+
+
+                                                      Metalex Ultra Deep Brillante Yellow Medium (MY)           2    30    1     1   11    27              59     7
+  CSW0120                 Amarillo Cromo                        F75TJ0104
+*Desarrollo en        F75YJ28-19, F75YJ28-4                   con Maxitoner
+   tienda
+
+
+                                                      Metalex Ultra Deep Brillante          White (TW)               12               1    16              7      16
+                          Amarillo Limón                        F75TJ0104               Yellow Oxide (YO)             2          1         9               1      13
+*Desarrollo en
+                      F75YJ27-19, F75YJ27-4                   con Maxitoner            Organic Yellow (OY)      2     4    1     1    8    19         1    43                 1
+   tienda
+                                                                                      Medium Yellow (MY)             12    1     1    1    19    1    1    8      2    1      1
+
+
+                                                      Metalex Ultra Deep Brillante         Orange (UO)          2    20              10    16              52     16
+                              Naranja                           F75TJ0104             Yellow Medium (MY)              4                    16              2      16
+*Desarrollo en
+                      F75EJ11-19, F75EJ11-4                   con Maxitoner
+   tienda
+
+
+
+                                                      Metalex Ultra Deep Brillante          White (TW)                2    1     1         11              1      23
+                             Rojo Claro                         F75TJ0104                Magenta QR(QR)         1    23               6    28              34     12
+*Desarrollo en
+                      F75RJ20-19, F75RJ20-4                   con Maxitoner                Orange (UO)          1     1    1     1    4    7               21     3
+   tienda
+
+
+
+                                                      Metalex Ultra Deep Brillante       Magenta QR(QR)         2     1               8    4               40     20
+                             Rojo Poste                         F75TJ0104                  Orange (UO)               29               3    20              18     4
+*Desarrollo en
+                      F75RJ37-19, F75RJ37-4                   con Maxitoner                 White (TW)                2                    8               1      8
+   tienda
+
+
+
+                                                      Metalex Ultra Deep Brillante        Violet QV (QV)        1     6    1          4    26              24     2
+                            Rojo Dragón                         F75TJ0104                  Orange (UO)          1    25    1          7    5               35     25
+*Desarrollo en
+                      F75RJ21-19, F75RJ21-4                   con Maxitoner
+   tienda
+
+
+
+
+1.- Máxima confidencialidad: Dirección técnica SW
+2.- Confidencialidad alta: Personal técnico de SW solamente
+3.- Medium: Acceso abierto a empleados de SW
+4.- Bajo: Acceso abierto externo (discrecional)
+
+
+ Archivo CONFIDENCIAL para uso exclusivo de Sherwin-Williams. Contiene información comercial y técnica confidencial, propiedad intelectual de SW,
+ con información protegida por las leyes aplicables. La difusión, distribución o copia de este documento y modificación de la información aquí contenida
+  está estrictamente prohibida y no está autorizada. Los resultados presentados en este informe son relevantes solo para lotes de muestras probadas.
+

@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Sistema RELMA para administrar clientes, fórmulas, igualación de color y preparación de pintura">
+<meta name="theme-color" content="#0f172a">
 <title>RELMA</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -16,7 +18,7 @@
     <label>Usuario<input id="loginUsuario" autocomplete="username"></label>
     <label>Contraseña<input id="loginPassword" type="password" autocomplete="current-password"></label>
     <button id="btnLogin" class="primario ancho-total">Entrar</button>
-    <div id="loginError" class="login-error"></div>
+    <div id="loginError" class="login-error" role="alert" aria-live="polite"></div>
   </div>
 </div>
 
@@ -48,7 +50,9 @@
     <button data-tab="formulas">🧪 Fórmulas</button>
     <button data-tab="mezclador">🧴 Igualar Color</button>
     <button data-tab="conversor">🔁 Conversor</button>
+    <button data-tab="comparador">⚖️ Comparar Fórmulas</button>
     <button data-tab="historial">📖 Historial</button>
+    <button data-tab="comparar">🔍 Comparar Color</button>
     <button data-tab="backup">💾 Backup</button>
     <button data-tab="config" class="solo-admin">⚙️ Config</button>
   </nav>
@@ -181,8 +185,8 @@
     </div>
     <label class="chk-inline"><input type="checkbox" id="convMostrarML"> Mostrar también en ML</label>
     <label>Pega las tintas:<textarea id="entradaConv" rows="8"></textarea></label>
-    <div class="fila-botones">
-      <button id="btnConvertir" class="primario">Convertir</button>
+        <div class="fila-botones">
+      <button id="btnGuardarConv" class="exito">💾 Guardar como nueva fórmula</button>
       <button id="btnCopiarConv" class="secundario">📋 Copiar resultado</button>
     </div>
     <h3 style="margin-top:16px">Resultado:</h3>
@@ -216,6 +220,73 @@
     </div>
     <div id="listaHistorial"></div>
   </section>
+  <!-- ===== COMPARAR COLOR ===== -->
+  <section id="tab-comparar" class="tab">
+    <h2>🔍 Buscar Color por RGB/HEX</h2>
+    <div class="card-config">
+      <div class="fila">
+        <label>Elige un color
+          <input type="color" id="color-picker" value="#ff0000" style="height:44px;cursor:pointer;width:100%">
+        </label>
+        <label>Valor HEX
+          <span id="hex-value" style="display:inline-block;padding:10px;background:var(--fondo-suave);border-radius:6px;font-family:monospace;font-size:1.1rem">#ff0000</span>
+        </label>
+      </div>
+      <div class="fila">
+        <label>Buscar por Código (Ej. A1-01, SW6868, 1000)
+          <input type="text" id="input-codigo" placeholder="Escribe el código exacto...">
+        </label>
+        <label>&nbsp;
+          <button id="btn-buscar-codigo" class="primario ancho-total">🔍 Buscar por Código</button>
+        </label>
+      </div>
+      <div class="fila" style="margin-top:15px; padding-top:15px; border-top:1px solid #334155">
+        <label>Tipo de pintura (para búsqueda por color)
+          <select id="tipo-pintura">
+            <option value="BASE AGUA">Base Agua (SW)</option>
+            <option value="BASE SOLVENTE">Base Solvente (SW)</option>
+            <option value="PROCONSTRUCTOR">ProConstructor (SW)</option>
+            <option value="METALEX">Metalex (Maxitoner)</option>
+          </select>
+        </label>
+      </div>
+      <div class="fila-botones">
+        <button id="btn-buscar" class="primario">🔍 Buscar Fórmula</button>
+      </div>
+    </div>
+    
+    <!-- Aquí se inyecta el resultado -->
+    <div id="resultado" style="margin-top:20px"></div>
+  </section>
+
+  <!-- ===== COMPARAR FÓRMULAS ===== -->
+  <section id="tab-comparador" class="tab">
+    <h2>⚖️ Comparador de Fórmulas</h2>
+    <div class="card-config">
+      <p class="ayuda">Pega las tintas de la fórmula que quieres comparar (ej. "Negro = 10/32", "Azul = 2 HOZ"). El sistema encontrará los colores más parecidos en los libros de línea.</p>
+      
+      <div class="fila">
+        <label>Buscar en libro:
+          <select id="compTipoPintura">
+            <option value="BASE AGUA">Base Agua (SW)</option>
+            <option value="BASE SOLVENTE">Base Solvente (SW)</option>
+            <option value="COMEX COLORLIFE">Comex ColorLife</option>
+            <option value="RAL 28">RAL 28</option>
+          </select>
+        </label>
+      </div>
+
+      <label>Fórmula a comparar:
+        <textarea id="compEntrada" rows="5" placeholder="Ejemplo:&#10;Negro (B1) = 10/32&#10;Blanco (W1) = 1 HOZ&#10;Azul (L1) = 12 ML"></textarea>
+      </label>
+
+      <div class="fila-botones">
+        <button id="btnCompararFormula" class="primario">⚖️ Comparar con la Base de Datos</button>
+      </div>
+    </div>
+
+    <div id="compResultados" style="margin-top:20px"></div>
+  </section>
 
   <!-- ===== BACKUP ===== -->
   <section id="tab-backup" class="tab">
@@ -227,6 +298,7 @@
         <label class="chk-inline"><input type="checkbox" value="clientes" checked> Clientes</label>
         <label class="chk-inline"><input type="checkbox" value="formulas" checked> Fórmulas</label>
         <label class="chk-inline"><input type="checkbox" value="detalle_tintas" checked> Tintas de fórmulas</label>
+        <label class="chk-inline"><input type="checkbox" value="formula_clientes" checked> Fórmulas por cliente</label>
         <label class="chk-inline"><input type="checkbox" value="historial_preparacion" checked> Historial</label>
         <label class="chk-inline"><input type="checkbox" value="catalogo_tintas" checked> Catálogo tintas</label>
         <label class="chk-inline"><input type="checkbox" value="catalogo_productos" checked> Catálogo productos</label>
@@ -555,11 +627,14 @@
   <div class="modal-caja modal-grande">
     <h3 id="frmTitulo">Nueva Fórmula</h3>
     <input type="hidden" id="frmId">
-    <label>Cliente
-      <div class="fila-mini">
-        <select id="nfCliente"></select>
-        <button type="button" id="nfNuevoCliente" class="primario">+ Nuevo</button>
+    <label>Clientes asignados
+      <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+        <select id="nfClienteSelect" style="flex: 1;"></select>
+        <button type="button" id="btnAgregarClienteTag" class="primario" style="width: 44px; height: 44px; font-size: 1.2rem; padding: 0;">+</button>
+        <button type="button" id="nfNuevoCliente" class="secundario" style="flex-shrink: 0;">+ Nuevo</button>
       </div>
+      <!-- Aquí aparecerán las etiquetas de los clientes seleccionados -->
+      <div id="nfClientesTags" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px;"></div>
     </label>
     <div class="fila">
       <label>Color<input id="nfColor"></label>
@@ -657,15 +732,17 @@
         <label>&nbsp;<button id="detBtnConvertir" class="primario">Convertir</button></label>
       </div>
       <pre id="detConvSalida"></pre>
-      <button id="detBtnGuardarConvertida" class="exito oculto" style="margin-top:10px">
+      <button id="detBtnGuardarConvertida" type="button" class="exito oculto" style="margin-top:10px">
         💾 Guardar versión convertida como nueva fórmula
+      </button>
+      <button id="detBtnIgualarConvertida" type="button" class="primario oculto" style="margin-top:10px">
+        🧪 Igualar usando la versión convertida
       </button>
     </div>
     <div class="card-config">
       <h4 style="margin-top:0">📖 Historial de esta fórmula</h4>
       <div id="detHistorial"></div>
     </div>
-    <div class="card-config" style="margin-top:14px">
     <div class="card-config" style="margin-top:14px">
       <label>Mostrar tintas en:
         <select id="detUnidad">
@@ -675,8 +752,9 @@
         </select>
       </label>
     </div>
-    <div class="acciones">
+        <div class="acciones">
       <button class="cancelar secundario">Cerrar</button>
+      <button id="detBtnIgualar" class="exito">🧪 Igualar este color</button>
       <button id="detBtnPreparar" class="primario">✅ Preparar</button>
     </div>
   </div>
@@ -725,7 +803,7 @@
   </div>
 </div>
 
-<div id="toast" class="toast oculto"></div>
+<div id="toast" class="toast oculto" role="status" aria-live="polite"></div>
 
 </div><!-- cierra #app -->
 

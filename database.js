@@ -196,3 +196,70 @@ function logCambio(usuario, accion, tabla, registroId, detalle) {
 }
 
 module.exports = { db, logCambio };
+
+
+
+// === Tablas para colores de línea ===
+db.exec(`
+  CREATE TABLE IF NOT EXISTS colores_rgb (
+    codigo      TEXT PRIMARY KEY,
+    nombre      TEXT NOT NULL,
+    locator     TEXT,
+    rgb_r       INTEGER,
+    rgb_g       INTEGER,
+    rgb_b       INTEGER,
+    hex         TEXT,
+    marca       TEXT DEFAULT 'Sherwin-Williams',
+    cargado     TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_rgb_codigo ON colores_rgb(codigo);
+
+  CREATE TABLE IF NOT EXISTS colores_linea (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    codigo        TEXT NOT NULL,
+    nombre        TEXT NOT NULL,
+    tipo_pintura  TEXT NOT NULL,          -- BASE AGUA | BASE SOLVENTE | METALEX
+    base_color    TEXT NOT NULL,          -- EXTRA WHITE | DEEP | ULTRADEEP | VIVID YELLOW | ...
+    variante      TEXT NOT NULL DEFAULT 'general', -- general | interior | exterior
+    locator       TEXT,
+    pagina        TEXT,
+    colorantes    TEXT NOT NULL,          -- JSON
+    total_oz      REAL NOT NULL,          -- referencia Galón
+    volumen_ref   TEXT NOT NULL DEFAULT 'GALON',
+    marca         TEXT DEFAULT 'Sherwin-Williams',
+    cargado       TEXT DEFAULT (datetime('now')),
+    UNIQUE(codigo, tipo_pintura, base_color, variante)
+  );
+  CREATE INDEX IF NOT EXISTS idx_linea_codigo ON colores_linea(codigo);
+  CREATE INDEX IF NOT EXISTS idx_linea_tipo   ON colores_linea(tipo_pintura);
+  CREATE INDEX IF NOT EXISTS idx_linea_base   ON colores_linea(base_color);
+`);
+console.log('✅ Tablas colores_rgb y colores_linea listas');
+
+// ==================== SOPORTE MULTI-CLIENTES ====================
+// Asegurarnos de que la tabla existe
+db.exec(`
+  CREATE TABLE IF NOT EXISTS formula_clientes (
+    formula_id INTEGER,
+    cliente_id INTEGER,
+    PRIMARY KEY (formula_id, cliente_id),
+    FOREIGN KEY (formula_id) REFERENCES formulas(id) ON DELETE CASCADE,
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+  );
+`);
+
+// Migrar automáticamente las fórmulas viejas si no están en la nueva tabla
+const totalRelaciones = db.prepare("SELECT COUNT(*) as c FROM formula_clientes").get().c;
+if (totalRelaciones === 0) {
+  const formulasAntiguas = db.prepare("SELECT id, cliente_id FROM formulas").all();
+  if (formulasAntiguas.length > 0) {
+    const ins = db.prepare("INSERT OR IGNORE INTO formula_clientes (formula_id, cliente_id) VALUES (?, ?)");
+    const tx = db.transaction(() => {
+      for (const f of formulasAntiguas) {
+        if (f.cliente_id) ins.run(f.id, f.cliente_id);
+      }
+    });
+    tx();
+    console.log("✅ Base de datos actualizada: Fórmulas vinculadas a la tabla multi-clientes.");
+  }
+}

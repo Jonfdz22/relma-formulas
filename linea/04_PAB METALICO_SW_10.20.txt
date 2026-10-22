@@ -1,0 +1,174 @@
+LIBRO DE
+FÓRMULAS
+P.A.B. METÁLICO
+
+
+
+
+Solo para Uso Interno
+Queda prohibida la reproducción parcial o completa y distribución de este libro de
+fórmulas sin previa autorización.
+Fórmulas P.A.B. Metálico
+Bases:                                                               Compañía Sherwin-Williams S.A. de C.V.
+C62SJ01                                                                      BTC - Global Color Technology
+                                                                             Última Revisión: Agosto 2017
+
+                                                            Litro        Galón       Cubeta
+Código    Nombre de Color    Base      Colorantes
+                                                        oz 32 64 128 oz 32 64 128 oz 32 64 128
+  N/A     BARRO MEXICANO    C62SJ01    Amarillo (Y1)    1                 4
+                                      Rojo Nuevo (R4)       26            3   8               N/A
+
+
+
+  N/A     BELLEZA RUSTICA   C62SJ01    Amarillo (Y1)         8            1
+                                        Negro (B1)          18            2   8               N/A
+                                      Rojo Óxido (R2)       10            1   8
+                                         Ocre (Y3)           2                8
+
+  N/A         BONSAI        C62SJ01     Ocre (Y3)           2                  8
+                                        Azul (L1)           6                 24              N/A
+                                       Amarillo (Y1)        8             1
+
+
+  N/A         BRONCE        C62SJ01     Café (N1)           20            2   16
+                                       Amarillo (Y1)         3                12              N/A
+                                         Azul (L1)           2                 8
+                                        Negro (B1)           4                16
+
+  N/A         CEDRO         C62SJ01    Amarillo (Y1)        8             1
+                                      Rojo Nuevo (R4)       6                 24              N/A
+                                      Rojo Óxido (R2)       4                 16
+
+
+  N/A          COCO         C62SJ01   Rojo Nuevo (R4)       16            2
+                                      Rojo Óxido (R2)            2                 8          N/A
+                                        Negro (B1)           4                16
+                                       Amarillo (Y1)        16            2
+
+  N/A       ESMERALDA       C62SJ01      Azul (L1)          16            2
+                                        Negro (B1)           8            1                   N/A
+                                       Amarillo (Y1)         4                16
+
+
+  N/A         GALAXIA       C62SJ01      Azul (L1)          16            2
+                                        Negro (B1)          10            1   8               N/A
+
+
+
+  N/A      GRANO DE CAFÉ    C62SJ01    Magenta (R3)          5                20
+                                        Negro (B1)          20            2   16              N/A
+                                      Rojo Óxido (R2)       16            2
+                                         Ocre (Y3)           6                24
+
+  N/A     MONEDA ANTIGUA    C62SJ01     Negro (B1)           4                16
+                                         Café (N1)          20            2   16              N/A
+                                      Rojo Óxido (R2)        2                 8
+
+
+  N/A         OCÉANO        C62SJ01     Azul (L1)           24            3
+                                       Magenta (R3)         10            1   8               N/A
+
+
+
+
+                                                                                                              1
+Fórmulas P.A.B. Metálico
+Bases:                                                               Compañía Sherwin-Williams S.A. de C.V.
+C62SJ01                                                                      BTC - Global Color Technology
+                                                                             Última Revisión: Agosto 2017
+
+                                                            Litro        Galón       Cubeta
+Código    Nombre de Color    Base      Colorantes
+                                                        oz 32 64 128 oz 32 64 128 oz 32 64 128
+  N/A      POLVO DE ORO     C62SJ01    Amarillo (Y1)         8            1
+                                        Negro (B1)           2                8               N/A
+                                        Ocre (Y3)           10            1   8
+
+
+  N/A      ROJO QUEMADO     C62SJ01      Ocre (Y3)           2                 8
+                                        Negro (B1)           4                16              N/A
+                                      Rojo Óxido (R2)       20            2   16
+
+
+  N/A        ESPRESSO       C62SJ01     Negro (B1)          19            2   12
+                                      Rojo Óxido (R2)        5                20              N/A
+                                         Ocre (Y3)          12            1   16
+
+
+  N/A       TERRACOTA       C62SJ01   Rojo Nuevo (R4)        8            1
+                                      Rojo Óxido (R2)        2                8               N/A
+                                       Amarillo (Y1)        10            1   8
+
+
+  N/A          UVA          C62SJ01    Magenta (R3)         20            2   16
+                                        Negro (B1)           8            1                   N/A
+                                      Rojo Óxido (R2)        2                8
+
+
+  N/A        VERBENA        C62SJ01    Magenta (R3)         20            2   16
+                                      Rojo Nuevo (R4)            8            16              N/A
+                                         Azul (L1)               8            16
+
+
+  N/A        MOSTAZA        C62SJ01      Ocre (Y3)          24            3
+                                      Rojo Nuevo (R4)        3                12              N/A
+
+
+
+  N/A        NOCTURNO       C62SJ01    Magenta (R3)          3                12
+                                         Azul (L1)           5                20              N/A
+                                        Negro (B1)          14            1   24
+
+
+  N/A       SERPENTINA      C62SJ01      Azul (L1)          8             1
+                                        Negro (B1)          9             1   4               N/A
+                                      Rojo Óxido (R2)       2                 8
+                                       Amarillo (Y1)        2                 8
+
+  N/A          TEJA         C62SJ01   Rojo Nuevo (R4)   1                 4
+                                       Amarillo (Y1)        5                 20              N/A
+
+
+
+  N/A       VERDE LIMA      C62SJ01    Amarillo (Y1)        8             1
+                                        Ocre (Y3)           2                  8              N/A
+                                        Azul (L1)           6                 24
+
+
+
+
+                                                                                                              2
+Fórmulas P.A.B. Metálico
+Bases:                                                           Compañía Sherwin-Williams S.A. de C.V.
+C62SJ01                                                                  BTC - Global Color Technology
+                                                                         Última Revisión: Agosto 2017
+
+                                                            Litro        Galón       Cubeta
+Código    Nombre de Color    Base      Colorantes
+                                                        oz 32 64 128 oz 32 64 128 oz 32 64 128
+  N/A         VIOLETA       C62SJ01   Rojo Nuevo (R4)   1             4
+                                         Azul (L1)          12        1   16              N/A
+
+
+
+
+                                                                                                          3
+Si tienes alguna duda referente a este libro de fórmulas, favor de contactar
+al área de Marketing para revisar temas puntuales.
+
+
+
+
+CONTACTO
+Para temas de reclamación de color y garantías:
+Asesoría Técnica
+asesoria@sherwin.com.mx
+
+
+Para temas de fórmulas faltantes:
+Color Studio
+colorstudio@sherwin.com.mx
+ Impresión:
+Octubre 2020
+
