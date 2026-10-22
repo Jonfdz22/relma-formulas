@@ -19,3 +19,11 @@ Thumbs.db
 
 # Variables de entorno
 .env
+
+
+*.db-shm
+*.db-wal
+*.lnk
+*Acceso directo*
+node_modules/
+respaldos/
