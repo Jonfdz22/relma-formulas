@@ -362,17 +362,19 @@
     <div class="card-config solo-admin">
       <h3>📥 Restaurar respaldo</h3>
       <p class="ayuda">Sube un archivo JSON previamente descargado. Antes de aplicar, verás un resumen.</p>
-      <input type="file" id="inputRestore" accept=".json">
-      <div id="restorePreview" class="oculto">
+      
+      <input type="file" id="inputRestore" accept=".json" style="margin-bottom: 15px;">
+      
+      <div id="restorePreview" style="display: none; border-top: 1px solid var(--borde); padding-top: 15px; margin-top: 15px;">
         <h4>Contenido del archivo:</h4>
         <div id="restoreResumen"></div>
-        <label style="margin-top:10px">Modo de restauración:
-          <select id="restoreModo">
+        <label style="margin-top:10px; display: block;">Modo de restauración:
+          <select id="restoreModo" style="width: 100%; margin-top: 5px;">
             <option value="fusionar">Fusionar (agrega sin borrar)</option>
             <option value="reemplazar">Reemplazar (borra lo existente de esas tablas)</option>
           </select>
         </label>
-        <div class="fila-botones">
+        <div class="fila-botones" style="margin-top: 15px;">
           <button id="btnAplicarRestore" class="peligro">⚠ Restaurar ahora</button>
           <button id="btnCancelarRestore" class="secundario">Cancelar</button>
         </div>

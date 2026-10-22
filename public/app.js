@@ -1750,19 +1750,36 @@ $("#btnAplicarImport").onclick = async () => {
 $("#inputRestore").onchange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  
   try {
-    const json = JSON.parse(await file.text());
+    const texto = await file.text();
+    const json = JSON.parse(texto);
     archivoRestoreTemp = json;
+    
+    // Pedir vista previa al servidor
     const preview = await api("/api/restore/preview", { method: "POST", body: JSON.stringify({ data: json.data }) });
-    const resumen = Object.entries(preview.resumen || {}).filter(([k, v]) => Number(v) > 0)
+    
+    const resumen = Object.entries(preview.resumen || {})
+      .filter(([k, v]) => Number(v) > 0)
       .map(([k, v]) => `<div>• <b>${escapeHTML(k)}</b>: ${escapeHTML(v)} fila(s)</div>`).join("");
-    $("#restoreResumen").innerHTML = resumen || "<p>El archivo no contiene datos.</p>";
-    $("#restorePreview").classList.remove("oculto");
+      
+    $("#restoreResumen").innerHTML = resumen || "<p>El archivo no contiene datos válidos.</p>";
+    
+    // Mostrar el cuadro con el botón de restaurar
+    $("#restorePreview").style.display = "block";
     toast("Archivo leído correctamente", "exito");
+    
   } catch (err) {
     toast("Archivo inválido: " + err.message, "error");
-    $("#restorePreview").classList.add("oculto");
+    $("#restorePreview").style.display = "none";
   }
+};
+
+// Función para cancelar
+$("#btnCancelarRestore").onclick = () => {
+  $("#restorePreview").style.display = "none";
+  $("#inputRestore").value = "";
+  archivoRestoreTemp = null;
 };
 
 $("#btnCancelarRestore").onclick = () => {
