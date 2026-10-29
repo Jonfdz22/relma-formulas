@@ -340,6 +340,7 @@ async function cargarTodo() {
     llenarSelects();
     cargarSesiones();
     cargarFormulasConversor();
+    actualizarEstadisticasGlobales();
   } catch (e) {
     console.error(e);
     toast("Error al cargar: " + e.message, "error");
@@ -2686,4 +2687,16 @@ if (btnGuardarConv) {
     abrirFormula(formulaFalsa);
     toast("Revisa los datos y guarda la nueva fórmula", "exito");
   };
+}
+
+// ==================== ESTADÍSTICAS GLOBALES ====================
+function actualizarEstadisticasGlobales() {
+  const elClientes = document.getElementById("statClientes");
+  const elFormulas = document.getElementById("statFormulas");
+  
+  if (elClientes && elFormulas) {
+    // Contamos los clientes y las fórmulas del estado
+    elClientes.textContent = state.clientes.length;
+    elFormulas.textContent = state.formulas.length;
+  }
 }
