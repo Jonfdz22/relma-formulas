@@ -128,60 +128,38 @@ function parsearCantidad(texto) {
 
 const DENOMINADORES_VALIDOS = [32, 64, 128, 256, 512];
 
-function validarYNormalizarCantidad(texto, maquina) {
-  if (!texto || texto.trim() === "") {
-    return { valido: false, error: "Escribe una cantidad" };
-  }
+function validarYNormalizarCantidad(texto, maquina, exacto = false) {
+  if (!texto || texto.trim() === "") return { valido: false, error: "Escribe una cantidad" };
   const str = String(texto).trim().toLowerCase().replace(/,/g, ".");
   const partes = str.split("+").map(p => p.trim()).filter(p => p !== "");
   if (!partes.length) return { valido: false, error: "Formato vacío" };
 
   let total128 = 0;
-
   for (const parte of partes) {
     let m;
-
     m = parte.match(/^(\d+(?:\.\d+)?)\s*ml$/);
-    if (m) {
-      const v = parseFloat(m[1]);
-      if (v < 0) return { valido: false, error: "No se aceptan negativos" };
-      total128 += (v / (964/32)) * 128;
-      continue;
-    }
-
+    if (m) { total128 += (parseFloat(m[1]) / (964/32)) * 128; continue; }
     m = parte.match(/^(\d+(?:\.\d+)?)\s*(hoz|h|onzas?|oz)$/);
-    if (m) {
-      const v = parseFloat(m[1]);
-      if (v < 0) return { valido: false, error: "No se aceptan negativos" };
-      total128 += v * 128;
-      continue;
-    }
-
+    if (m) { total128 += parseFloat(m[1]) * 128; continue; }
     m = parte.match(/^(\d+)\s*\/\s*(\d+)$/);
     if (m) {
-      const num = parseInt(m[1]);
-      const den = parseInt(m[2]);
+      const num = parseInt(m[1]); const den = parseInt(m[2]);
       if (den === 0) return { valido: false, error: "Denominador no puede ser 0" };
-      if (!DENOMINADORES_VALIDOS.includes(den)) {
-        return { valido: false, error: `Denominador ${den} no válido. Usa: ${DENOMINADORES_VALIDOS.join(", ")}` };
-      }
-      if (num < 0) return { valido: false, error: "No se aceptan negativos" };
-      total128 += (num / den) * 128;
-      continue;
+      if (!DENOMINADORES_VALIDOS.includes(den)) return { valido: false, error: `Denominador ${den} no válido.` };
+      total128 += (num / den) * 128; continue;
     }
-
     m = parte.match(/^(\d+(?:\.\d+)?)$/);
-    if (m) {
-      const v = parseFloat(m[1]);
-      if (v < 0) return { valido: false, error: "No se aceptan negativos" };
-      total128 += v * 128;
-      continue;
-    }
-
+    if (m) { total128 += parseFloat(m[1]) * 128; continue; }
     return { valido: false, error: `No entiendo "${parte}"` };
   }
 
-  const normalizado = formatearOZConMaquina(total128, maquina || 32);
+  // ✨ LA MAGIA: Devolvemos el texto EXACTAMENTE como lo escribió el usuario
+  let normalizado = texto.replace(/\s+/g, " ").trim();
+  // Si solo escribió una fracción suelta (ej. "8/64"), le ponemos el "0 HOZ + " al principio
+  if (/^\d+(?:\.\d+)?(?:\/\d+)?$/.test(normalizado)) {
+    normalizado = "0 HOZ + " + normalizado;
+  }
+
   return { valido: true, normalizado, total128 };
 }
 
@@ -198,19 +176,53 @@ function formatearOZ(total128) {
   return t;
 }
 
-function formatearOZConMaquina(total128, maquina) {
+function formatearOZExacto(total128) {
+  const total512 = Math.round(total128 * 4);
+  const onzasOut = Math.floor(total512 / 512);
+  let rem = total512 % 512;
+
+  // Priorizamos los 64avos primero
+  const r64 = Math.floor(rem / 8); rem = rem % 8;
+  const r128 = Math.floor(rem / 4); rem = rem % 4;
+  const r256 = Math.floor(rem / 2); rem = rem % 2;
+  const r512 = rem;
+
+  let t = onzasOut + " HOZ";
+  if (r64 > 0) t += " + " + r64 + "/64";
+  if (r128 > 0) t += " + " + r128 + "/128";
+  if (r256 > 0) t += " + " + r256 + "/256";
+  if (r512 > 0) t += " + " + r512 + "/512";
+  return t;
+}
+
+function formatearOZConMaquina(total128, maquina, exacto = false) {
+  if (exacto) return formatearOZExacto(total128);
+
   const onzasOut = Math.floor(total128 / 128);
   const resto128 = Math.round((total128 - onzasOut * 128) * 1000) / 1000;
+
+  // ✨ LÓGICA PARA MÁQUINA DE 64 (Respeta los 64avos)
   if (maquina === 64) {
     const r64 = Math.floor(resto128 / 2);
     const residuo = (resto128 / 2) - r64;
     const f128 = residuo >= 0.5 ? 1 : 0;
+    
     let t = onzasOut + " HOZ";
     if (r64 > 0) t += " + " + r64 + "/64";
     if (f128 > 0) t += " + " + f128 + "/128";
     return t;
   }
-  return formatearOZ(total128);
+
+  // Lógica para Máquina de 32 (La que ya teníamos)
+  const r64 = resto128 / 2, r64f = Math.floor(r64), rd64 = r64 - r64f;
+  const r32 = r64f / 2, r32f = Math.floor(r32), rd32 = r32 - r32f;
+  const f64 = rd32 >= 0.5 ? 1 : 0, f128 = rd64 >= 0.5 ? 1 : 0;
+  
+  let t = onzasOut + " HOZ";
+  if (r32f > 0) t += " + " + r32f + "/32";
+  if (f64 > 0)  t += " + " + f64 + "/64";
+  if (f128 > 0) t += " + " + f128 + "/128";
+  return t;
 }
 
 function formatearML(total128) {
@@ -795,7 +807,7 @@ function agregarFilaTinta(tinta, cantidad) {
       <option value="">— Tinta —</option>
       ${tintasFiltradas.map(t => `<option value="${escapeHTML(t.nombre)}" data-cat="${escapeHTML(t.categoria)}">${escapeHTML(t.nombre)} (${escapeHTML(t.categoria)})</option>`).join("")}
     </select>
-      <input type="text" class="tinta-cant" placeholder="Ej: 24 hoz + 10/32" value="${escapeHTML(cantidad || "")}">
+      <input type="text" class="tinta-cant" placeholder="Ej: 24 hoz + 10/32 + 15/64" value="${escapeHTML(cantidad || "")}">
     <span class="feedback-tinta"></span>
     <button type="button" class="quitar">✕</button>`;
   if (tinta) div.querySelector(".tinta-select").value = tinta;
@@ -804,6 +816,8 @@ function agregarFilaTinta(tinta, cantidad) {
 
   const input = div.querySelector(".tinta-cant");
   const fb = div.querySelector(".feedback-tinta");
+
+  // Evento 1: Mientras escribes (Feedback en vivo)
   input.addEventListener("input", () => {
     const val = input.value.trim();
     const maq = Number($("#nfMaquina").value);
@@ -812,7 +826,10 @@ function agregarFilaTinta(tinta, cantidad) {
       input.classList.remove("input-valido", "input-invalido");
       return;
     }
-    const r = validarYNormalizarCantidad(val, maq);
+    
+    const esExacto = document.getElementById("nfExacto") ? document.getElementById("nfExacto").checked : false;
+    const r = validarYNormalizarCantidad(val, maq, esExacto);
+    
     if (r.valido) {
       fb.textContent = (r.normalizado !== val) ? "→ " + r.normalizado : "✓";
       fb.className = "feedback-tinta valido";
@@ -825,11 +842,16 @@ function agregarFilaTinta(tinta, cantidad) {
       input.classList.remove("input-valido");
     }
   });
+
+  // Evento 2: Cuando quitas el cursor del campo (Guardar normalizado)
   input.addEventListener("blur", () => {
     const val = input.value.trim();
     const maq = Number($("#nfMaquina").value);
     if (!val) return;
-    const r = validarYNormalizarCantidad(val, maq);
+    
+    const esExacto = document.getElementById("nfExacto") ? document.getElementById("nfExacto").checked : false;
+    const r = validarYNormalizarCantidad(val, maq, esExacto);
+    
     if (r.valido) input.value = r.normalizado;
   });
 }
@@ -1337,6 +1359,10 @@ function ejecutarConversion() {
   const maquina = Number($("#maquinaConv").value);
   const mostrarML = $("#convMostrarML").checked;
   const texto = ($("#entradaConv").value || "").trim();
+  
+  // LEEMOS EL CHECKBOX DEL CONVERSOR AQUÍ
+  const esExacto = document.getElementById("convExacto") ? document.getElementById("convExacto").checked : false;
+
   if (!texto) return $("#salidaConv").textContent = "(escribe algo primero)";
 
   const lineas = texto.split("\n").filter(l => l.trim());
@@ -1348,14 +1374,16 @@ function ejecutarConversion() {
     const cant = partes.slice(1).join("=").trim();
     const total128 = parsearCantidad(cant);
     if (total128 === null) { out.push(tinta + " = ERROR"); continue; }
+    
     const conv = (total128 / capOrigen) * capDestino;
-    out.push(tinta + " = " + formatearOZConMaquina(conv, maquina) +
+    
+    // LE PASAMOS EL DATO "esExacto" A LA FUNCIÓN
+    out.push(tinta + " = " + formatearOZConMaquina(conv, maquina, esExacto) +
              (mostrarML ? "   (" + formatearML(conv) + ")" : ""));
   }
   $("#salidaConv").textContent = out.join("\n") || "(vacío)";
 }
-
-["capOrigen","capDestino","capOrigenCustom","capDestinoCustom","maquinaConv","convMostrarML","entradaConv"].forEach(id => {
+["capOrigen","capDestino","capOrigenCustom","capDestinoCustom","maquinaConv","convMostrarML","entradaConv","convExacto"].forEach(id => {
   const el = $("#" + id);
   if (el) {
     el.addEventListener("input", ejecutarConversion);

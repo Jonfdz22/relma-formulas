@@ -89,7 +89,7 @@ app.get("/api/clientes", (req, res) => {
   const q = req.query.q || "";
   res.json(db.prepare(`
     SELECT c.*,
-      (SELECT COUNT(*) FROM formulas f WHERE f.cliente_id=c.id) AS num_formulas
+      (SELECT COUNT(*) FROM formula_clientes fc WHERE fc.cliente_id=c.id) AS num_formulas
     FROM clientes c WHERE c.nombre LIKE ? ORDER BY c.nombre
   `).all("%" + q + "%"));
 });
@@ -108,7 +108,10 @@ app.post("/api/clientes", (req, res) => {
 app.get("/api/clientes/:id", (req, res) => {
   const c = db.prepare("SELECT * FROM clientes WHERE id=?").get(req.params.id);
   if (!c) return res.status(404).json({ error: "No existe" });
-  c.formulas = db.prepare("SELECT * FROM formulas WHERE cliente_id=? ORDER BY fecha_creacion DESC").all(req.params.id);
+  c.formulas = db.prepare(`
+    SELECT f.* FROM formulas f
+    JOIN formula_clientes fc ON fc.formula_id=f.id
+    WHERE fc.cliente_id=? ORDER BY f.fecha_creacion DESC`).all(req.params.id);
   res.json(c);
 });
 
@@ -129,9 +132,30 @@ app.put("/api/clientes/:id", (req, res) => {
 app.delete("/api/clientes/:id", requiereAdmin, (req, res) => {
   try {
     const borrar = db.transaction(() => {
+      // 1. Desconectar del historial (conserva el registro histórico)
       db.prepare("UPDATE historial_preparacion SET cliente_id=NULL WHERE cliente_id=?").run(req.params.id);
+      // 2. Borrar sesiones del mezclador (con sus ajustes en cascada)
       db.prepare("DELETE FROM sesiones_mezclador WHERE cliente_id=?").run(req.params.id);
-      db.prepare("DELETE FROM formulas WHERE cliente_id=?").run(req.params.id);
+      // 3. Desconectar del historial las fórmulas EXCLUSIVAS de este cliente
+      db.prepare(`
+        UPDATE historial_preparacion SET formula_id=NULL WHERE formula_id IN (
+          SELECT f.id FROM formulas f
+          JOIN formula_clientes fc ON fc.formula_id=f.id
+          WHERE fc.cliente_id=?
+            AND NOT EXISTS (SELECT 1 FROM formula_clientes o WHERE o.formula_id=f.id AND o.cliente_id != ?)
+        )`).run(req.params.id, req.params.id);
+      // 4. Borrar solo las fórmulas que NO comparte con otros clientes
+      //    (las compartidas solo se le desconecta vía cascada al borrar el cliente;
+      //     detalle_tintas cae en cascada)
+      db.prepare(`
+        DELETE FROM formulas WHERE id IN (
+          SELECT f.id FROM formulas f
+          JOIN formula_clientes fc ON fc.formula_id=f.id
+          WHERE fc.cliente_id=?
+            AND NOT EXISTS (SELECT 1 FROM formula_clientes o WHERE o.formula_id=f.id AND o.cliente_id != ?)
+        )`).run(req.params.id, req.params.id);
+      db.prepare("DELETE FROM formula_clientes WHERE cliente_id=?").run(req.params.id);
+      // 5. Finalmente, borrar el cliente
       db.prepare("DELETE FROM clientes WHERE id=?").run(req.params.id);
     });
     borrar();
@@ -220,21 +244,21 @@ app.get("/api/formulas/:id", (req, res) => {
 });
 
 function guardarFormula(data, usuario) {
+  // Aunque venga un solo cliente, siempre debe quedar ligado en formula_clientes
+  const clientesIds = (data.clientes_ids && data.clientes_ids.length ? data.clientes_ids : [data.cliente_id]).map(Number);
   const crear = db.transaction(() => {
     const info = db.prepare(`
       INSERT INTO formulas (cliente_id,color,codigo,producto,base,capacidad_madre,maquina,foto_url,notas)
       VALUES (?,?,?,?,?,?,?,?,?)`).run(
-      data.cliente_id, data.color, data.codigo||null, data.producto||null, data.base||null,
+      clientesIds[0], data.color, data.codigo||null, data.producto||null, data.base||null,
       data.capacidad_madre||1, data.maquina||32, data.foto_url||null, data.notas||null);
-    
+
     const fid = info.lastInsertRowid;
     const insT = db.prepare("INSERT INTO detalle_tintas (formula_id,tinta,cantidad_texto,categoria) VALUES (?,?,?,?)");
     for (const t of (data.tintas||[])) insT.run(fid, t.tinta, t.cantidad_texto, t.categoria||null);
-    
-    if (data.clientes_ids && data.clientes_ids.length > 0) {
-      const insC = db.prepare("INSERT OR IGNORE INTO formula_clientes (formula_id, cliente_id) VALUES (?,?)");
-      for (const cid of data.clientes_ids) insC.run(fid, cid);
-    }
+
+    const insC = db.prepare("INSERT OR IGNORE INTO formula_clientes (formula_id, cliente_id) VALUES (?,?)");
+    for (const cid of clientesIds) insC.run(fid, cid);
     return fid;
   });
   return crear();
@@ -295,8 +319,10 @@ app.post("/api/formulas/:id/duplicar", (req, res) => {
   const orig = db.prepare("SELECT * FROM formulas WHERE id=?").get(req.params.id);
   if (!orig) return res.status(404).json({ error: "No existe" });
   const tintas = db.prepare("SELECT * FROM detalle_tintas WHERE formula_id=?").all(orig.id);
+  const clientesIds = db.prepare("SELECT cliente_id FROM formula_clientes WHERE formula_id=?").all(orig.id).map(r => r.cliente_id);
   const nueva = guardarFormula({
     cliente_id: orig.cliente_id,
+    clientes_ids: clientesIds.length ? clientesIds : [orig.cliente_id],
     color: orig.color + " (copia)",
     codigo: orig.codigo, producto: orig.producto, base: orig.base,
     capacidad_madre: orig.capacidad_madre, maquina: orig.maquina,
@@ -796,12 +822,22 @@ app.get("/api/buscar", (req, res) => {
   const q = (req.query.q || "").trim();
   if (q.length < 2) return res.json({ clientes: [], formulas: [], productos: [] });
   const like = "%" + q + "%";
+  
   res.json({
     clientes: db.prepare("SELECT id, nombre FROM clientes WHERE nombre LIKE ? LIMIT 8").all(like),
+    
+    // Buscamos en color, código, o en el nombre de CUALQUIERA de los clientes vinculados
     formulas: db.prepare(`
-      SELECT f.id, f.color, f.codigo, f.producto, f.base, f.capacidad_madre, c.nombre AS cliente_nombre
-      FROM formulas f JOIN clientes c ON c.id=f.cliente_id
-      WHERE f.color LIKE ? OR f.codigo LIKE ? LIMIT 8`).all(like, like),
+      SELECT f.id, f.color, f.codigo, f.producto, f.base, f.capacidad_madre,
+        (SELECT GROUP_CONCAT(cl.nombre, ', ') FROM formula_clientes fc 
+         JOIN clientes cl ON cl.id = fc.cliente_id 
+         WHERE fc.formula_id = f.id) AS cliente_nombre
+      FROM formulas f 
+      WHERE f.color LIKE ? OR f.codigo LIKE ? 
+         OR f.id IN (SELECT formula_id FROM formula_clientes fc JOIN clientes cl ON cl.id=fc.cliente_id WHERE cl.nombre LIKE ?)
+      LIMIT 8
+    `).all(like, like, like),
+    
     productos: db.prepare("SELECT codigo, nombre, categoria FROM catalogo_productos WHERE nombre LIKE ? LIMIT 8").all(like)
   });
 });

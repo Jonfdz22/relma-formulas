@@ -33,6 +33,13 @@ db.exec(`
     fecha_creacion      TEXT DEFAULT (datetime('now')),
     ultima_actualizacion TEXT DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS formula_clientes (
+    formula_id INTEGER,
+    cliente_id INTEGER,
+    PRIMARY KEY (formula_id, cliente_id),
+    FOREIGN KEY (formula_id) REFERENCES formulas(id) ON DELETE CASCADE,
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+  );
   CREATE TABLE IF NOT EXISTS detalle_tintas (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     formula_id     INTEGER NOT NULL REFERENCES formulas(id) ON DELETE CASCADE,
@@ -186,6 +193,9 @@ db.transaction(() => {
     console.log("→ Usuario admin creado (admin / admin123)");
   }
 })();
+
+// Toda fórmula debe tener al menos a su cliente propietario en la tabla intermedia (es idempotente)
+db.prepare("INSERT OR IGNORE INTO formula_clientes (formula_id, cliente_id) SELECT id, cliente_id FROM formulas").run();
 
 function logCambio(usuario, accion, tabla, registroId, detalle) {
   try {
