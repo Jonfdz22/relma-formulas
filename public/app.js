@@ -797,8 +797,8 @@ document.getElementById("btnAgregarClienteTag").onclick = () => {
 };
 
 function agregarFilaTinta(tinta, cantidad) {
-  const maquina = Number($("#nfMaquina").value);
-  const tintasFiltradas = state.tintas.filter(t => t.maquina === maquina);
+  const valorMaquina = $("#nfMaquina").value;
+  const tintasFiltradas = (valorMaquina === "mixta") ? state.tintas : state.tintas.filter(t => t.maquina === Number(valorMaquina));;
   const cont = $("#nfTintas");
   const div = document.createElement("div");
   div.className = "tinta-fila";
@@ -816,6 +816,7 @@ function agregarFilaTinta(tinta, cantidad) {
 
   const input = div.querySelector(".tinta-cant");
   const fb = div.querySelector(".feedback-tinta");
+
 
   // Evento 1: Mientras escribes (Feedback en vivo)
   input.addEventListener("input", () => {
@@ -858,15 +859,16 @@ function agregarFilaTinta(tinta, cantidad) {
 
 document.addEventListener("change", (e) => {
   if (e.target && e.target.id === "nfMaquina") {
-    const maquina = Number(e.target.value);
-    const tintasFiltradas = state.tintas.filter(t => t.maquina === maquina);
+    const valorMaquina = e.target.value;
+    const tintasFiltradas = (valorMaquina === "mixta") ? state.tintas : state.tintas.filter(t => t.maquina === Number(valorMaquina));
+    
     $$("#nfTintas .tinta-select").forEach(sel => {
       const valorActual = sel.value;
       sel.innerHTML = '<option value="">— Tinta —</option>' +
         tintasFiltradas.map(t => `<option value="${escapeHTML(t.nombre)}" data-cat="${escapeHTML(t.categoria)}">${escapeHTML(t.nombre)} (${escapeHTML(t.categoria)})</option>`).join("");
       if (tintasFiltradas.find(t => t.nombre === valorActual)) sel.value = valorActual;
     });
-    toast("Tintas filtradas por máquina " + maquina, "aviso");
+    toast("Tintas filtradas a: " + (valorMaquina === "mixta" ? "Combinada" : valorMaquina), "aviso");
   }
 });
 
@@ -882,7 +884,8 @@ $("#nfNuevoProducto").onclick = () => abrirProductoNuevo("modalFormula", "nfProd
 
 $("#btnGuardarFormula").onclick = async () => {
   const tintas = [];
-  const maq = Number($("#nfMaquina").value);
+  const valorMaquina = $("#nfMaquina").value;
+  const maq = (valorMaquina === "mixta") ? 64 : Number(valorMaquina);
   let huboError = false;
   
   $$("#nfTintas .tinta-fila").forEach(fila => {

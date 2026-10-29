@@ -655,8 +655,12 @@
     <div class="fila">
       <label>Capacidad (LT)<input id="nfCapacidad" type="number" step="0.1" value="1"></label>
       <label>Máquina
-        <select id="nfMaquina"><option value="32">Industrial (32)</option><option value="64">Arquitectónica (64)</option></select>
-      </label>
+  <select id="nfMaquina">
+    <option value="32">Industrial (32)</option>
+    <option value="64">Arquitectónica (64)</option>
+    <option value="mixta">Combinada (32 y 64)</option>
+  </select>
+  </label>
      <label class="chk-inline" style="margin-top: 10px; grid-column: span 2;">
         <input type="checkbox" id="nfExacto"> Mostrar fracciones exactas (1/256, 1/512)
       </label>
